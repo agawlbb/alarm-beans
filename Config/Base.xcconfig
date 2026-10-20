@@ -1,0 +1,9 @@
+// SPDX-License-Identifier: MPL-2.0
+ALARM_BEANS_BUNDLE_ID = com.agawlbb.alarmbeans
+ALARM_BEANS_APP_GROUP = group.com.agawlbb.alarmbeans
+MARKETING_VERSION = 0.1.0
+CURRENT_PROJECT_VERSION = 1
+CODE_SIGN_STYLE = Automatic
+// Create Config/Local.xcconfig for local signing overrides. Never commit credentials.
+#include? "Local.xcconfig"
+

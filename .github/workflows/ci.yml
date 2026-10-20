@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: MPL-2.0
+name: Build and test
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  apple-build:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build iPhone, Watch, complication, and test coordination
+        run: bash scripts/ci.sh
+      - name: Save generated project and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: alarm-beans-build-diagnostics
+          path: |
+            AlarmBeans.xcodeproj
+            build/DerivedData/Logs
+            build/WatchDerivedData/Logs
+          if-no-files-found: ignore
+

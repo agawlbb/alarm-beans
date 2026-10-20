@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: MPL-2.0
+name: Upload internal TestFlight build
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: testflight-upload
+  cancel-in-progress: false
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: macos-26
+    environment: testflight
+    timeout-minutes: 40
+    env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      DISTRIBUTION_P12_BASE64: ${{ secrets.DISTRIBUTION_P12_BASE64 }}
+      DISTRIBUTION_P12_PASSWORD: ${{ secrets.DISTRIBUTION_P12_PASSWORD }}
+      PHONE_PROFILE_BASE64: ${{ secrets.PHONE_PROFILE_BASE64 }}
+      WATCH_PROFILE_BASE64: ${{ secrets.WATCH_PROFILE_BASE64 }}
+      COMPLICATION_PROFILE_BASE64: ${{ secrets.COMPLICATION_PROFILE_BASE64 }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_PRIVATE_KEY_BASE64: ${{ secrets.ASC_PRIVATE_KEY_BASE64 }}
+      ALARM_BEANS_BUNDLE_ID: ${{ vars.ALARM_BEANS_BUNDLE_ID || 'com.agawlbb.alarmbeans' }}
+      ALARM_BEANS_APP_GROUP: ${{ vars.ALARM_BEANS_APP_GROUP || 'group.com.agawlbb.alarmbeans' }}
+      BUILD_NUMBER: ${{ github.run_number }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and test before signing
+        run: bash scripts/ci.sh
+      - name: Sign and upload to App Store Connect
+        run: bash scripts/testflight.sh
+      - name: Save signed build and symbols
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: alarm-beans-testflight-${{ github.run_number }}
+          path: |
+            build/Export/*.ipa
+            build/AlarmBeans.xcarchive/dSYMs
+          retention-days: 14
+

@@ -1,0 +1,143 @@
+# SPDX-License-Identifier: MPL-2.0
+name: AlarmBeans
+options:
+  minimumXcodeGenVersion: 2.44.1
+  xcodeVersion: '26.6'
+  deploymentTarget:
+    iOS: '26.0'
+    watchOS: '26.0'
+  createIntermediateGroups: true
+configFiles:
+  Debug: Config/Base.xcconfig
+  Release: Config/Base.xcconfig
+settings:
+  base:
+    SWIFT_VERSION: '5.0'
+    SWIFT_STRICT_CONCURRENCY: targeted
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    GENERATE_INFOPLIST_FILE: NO
+    ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+packages:
+  AlarmCore:
+    path: Packages/AlarmCore
+targets:
+  AlarmBeans:
+    type: application
+    platform: iOS
+    sources:
+      - Apps/iPhone
+      - Apps/Shared
+      - Resources/iPhone/Assets.xcassets
+      - path: Resources/PrivacyInfo.xcprivacy
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(ALARM_BEANS_BUNDLE_ID)
+        TARGETED_DEVICE_FAMILY: '1'
+        SUPPORTS_MACCATALYST: NO
+      configs:
+        Release:
+          PROVISIONING_PROFILE_SPECIFIER: $(ALARM_BEANS_PHONE_PROFILE)
+    info:
+      path: build/Generated/iPhone-Info.plist
+      properties:
+        CFBundleDisplayName: Alarm Beans
+        LSRequiresIPhoneOS: true
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        NSAlarmKitUsageDescription: Alarm Beans schedules an audible backup after your silent Watch wake-up.
+        AlarmBeansAppGroup: $(ALARM_BEANS_APP_GROUP)
+        ITSAppUsesNonExemptEncryption: false
+    entitlements:
+      path: build/Generated/iPhone.entitlements
+      properties:
+        com.apple.security.application-groups: ['$(ALARM_BEANS_APP_GROUP)']
+    dependencies:
+      - package: AlarmCore
+      - target: AlarmBeansWatch
+        embed: true
+  AlarmBeansWatch:
+    type: application
+    platform: watchOS
+    sources:
+      - Apps/Watch
+      - Apps/Shared
+      - Resources/Watch/Assets.xcassets
+      - path: Resources/PrivacyInfo.xcprivacy
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(ALARM_BEANS_BUNDLE_ID).watchkitapp
+        TARGETED_DEVICE_FAMILY: '4'
+        SKIP_INSTALL: YES
+      configs:
+        Release:
+          PROVISIONING_PROFILE_SPECIFIER: $(ALARM_BEANS_WATCH_PROFILE)
+    info:
+      path: build/Generated/Watch-Info.plist
+      properties:
+        CFBundleDisplayName: Alarm Beans
+        WKApplication: true
+        WKCompanionAppBundleIdentifier: $(ALARM_BEANS_BUNDLE_ID)
+        WKWatchOnly: false
+        WKRunsIndependentlyOfCompanionApp: false
+        WKBackgroundModes: [alarm]
+        AlarmBeansAppGroup: $(ALARM_BEANS_APP_GROUP)
+        ITSAppUsesNonExemptEncryption: false
+        CFBundleURLTypes:
+          - CFBundleURLName: Alarm Beans
+            CFBundleURLSchemes: [alarmbeans]
+    entitlements:
+      path: build/Generated/Watch.entitlements
+      properties:
+        com.apple.security.application-groups: ['$(ALARM_BEANS_APP_GROUP)']
+    dependencies:
+      - package: AlarmCore
+      - target: AlarmBeansComplication
+        embed: true
+  AlarmBeansComplication:
+    type: app-extension
+    platform: watchOS
+    sources:
+      - Apps/Complication
+      - Apps/Shared/AlarmStore.swift
+      - path: Resources/PrivacyInfo.xcprivacy
+        buildPhase: resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(ALARM_BEANS_BUNDLE_ID).watchkitapp.complication
+        SKIP_INSTALL: YES
+        APPLICATION_EXTENSION_API_ONLY: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: ''
+      configs:
+        Release:
+          PROVISIONING_PROFILE_SPECIFIER: $(ALARM_BEANS_COMPLICATION_PROFILE)
+    info:
+      path: build/Generated/Complication-Info.plist
+      properties:
+        CFBundleDisplayName: Alarm Beans
+        AlarmBeansAppGroup: $(ALARM_BEANS_APP_GROUP)
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: build/Generated/Complication.entitlements
+      properties:
+        com.apple.security.application-groups: ['$(ALARM_BEANS_APP_GROUP)']
+    dependencies:
+      - package: AlarmCore
+schemes:
+  AlarmBeans:
+    build:
+      targets:
+        AlarmBeans: all
+    run:
+      config: Debug
+    archive:
+      config: Release
+  AlarmBeansWatch:
+    build:
+      targets:
+        AlarmBeansWatch: all
+    run:
+      config: Debug
+

@@ -28,7 +28,7 @@ On a Mac with that Xcode installed:
 bash scripts/ci.sh
 ```
 
-This generates `AlarmBeans.xcodeproj`, runs the shared Swift package tests, and builds the iPhone, Watch, and complication targets for simulators. The generated project and build products are intentionally ignored by Git.
+This generates `AlarmBeans.xcodeproj`, runs the shared Swift package tests, builds the iPhone, Watch, and complication targets for simulators, and creates an unsigned device archive to check release packaging. The generated project and build products are intentionally ignored by Git.
 
 For development signing, create an ignored `Config/Local.xcconfig`:
 

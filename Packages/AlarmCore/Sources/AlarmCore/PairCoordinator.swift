@@ -134,7 +134,12 @@ public enum DeviceRole: Sendable { case phone, watch }
     public func dismiss(_ id: UUID) async {
         // Save the tombstone before any await or side effect.
         snapshot.dismiss(id)
-        do { try persist() } catch { return }
+        do { try persist() } catch {
+            // A disk failure must not prevent the user from stopping a local alert.
+            try? await scheduler.cancel(id)
+            link.enqueue(AlarmMessage(.cancel, id: id))
+            return
+        }
         link.enqueue(AlarmMessage(.cancel, id: id))
         do {
             try await scheduler.cancel(id)
@@ -144,8 +149,20 @@ public enum DeviceRole: Sendable { case phone, watch }
             try check(reply)
             snapshot.acknowledgeCancellation(id)
             try persist()
+            clearResolvedCancellationIssue()
         } catch {
-            issue = "Cancellation pending. The other device's alarm may still alert. \(error.localizedDescription)"
+            if snapshot.pendingCancellations.contains(id) {
+                issue = "Cancellation pending. The other device's alarm may still alert. \(error.localizedDescription)"
+            } else {
+                clearResolvedCancellationIssue()
+            }
+        }
+    }
+
+    private func clearResolvedCancellationIssue() {
+        if storageHealthy && snapshot.pendingCancellations.isEmpty,
+           issue?.hasPrefix("Cancellation pending.") == true {
+            issue = nil
         }
     }
 
@@ -194,6 +211,7 @@ public enum DeviceRole: Sendable { case phone, watch }
         guard role == .phone else { return }
         do {
             guard let ids = try await scheduler.scheduledIDs() else { return }
+            if issue?.hasPrefix("Could not verify iPhone alarms.") == true { issue = nil }
             for id in snapshot.dismissedIDs.intersection(ids) { try await scheduler.cancel(id) }
             guard let record = snapshot.record else {
                 // These IDs belong to this app's AlarmKit namespace.
@@ -279,6 +297,7 @@ public enum DeviceRole: Sendable { case phone, watch }
                     try await scheduler.cancel(id)
                     snapshot.acknowledgeCancellation(id)
                     try persist()
+                    clearResolvedCancellationIssue()
                 }
             case .settings:
                 if let update = message.settings, update.isNewer(than: snapshot.settings) {

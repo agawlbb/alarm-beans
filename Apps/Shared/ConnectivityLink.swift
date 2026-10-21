@@ -11,6 +11,7 @@ import WatchKit
     var onReconnect: (() async -> Void)?
     private let session = WCSession.default
     private var handlingCount = 0
+    private var pendingObservation: NSKeyValueObservation?
     #if os(watchOS)
     private var backgroundTasks: [WKWatchConnectivityRefreshBackgroundTask] = []
     #endif
@@ -18,6 +19,9 @@ import WatchKit
     override init() {
         super.init()
         session.delegate = self
+        pendingObservation = session.observe(\.hasContentPending, options: [.new]) { [weak self] _, _ in
+            Task { @MainActor in self?.finishBackgroundTasks() }
+        }
     }
 
     func activate() { session.activate() }

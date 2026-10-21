@@ -19,7 +19,13 @@ import Foundation
 
     func load() throws -> AlarmSnapshot {
         guard FileManager.default.fileExists(atPath: url.path) else { return AlarmSnapshot() }
-        return try JSONDecoder().decode(AlarmSnapshot.self, from: Data(contentsOf: url))
+        let snapshot = try JSONDecoder().decode(AlarmSnapshot.self, from: Data(contentsOf: url))
+        try snapshot.settings.value.validate()
+        if let occurrence = snapshot.record?.occurrence {
+            try occurrence.settings.validate()
+            guard occurrence.wakeTime.timeIntervalSince1970.isFinite else { throw AlarmError.invalidOccurrence }
+        }
+        return snapshot
     }
 
     func save(_ snapshot: AlarmSnapshot) throws {

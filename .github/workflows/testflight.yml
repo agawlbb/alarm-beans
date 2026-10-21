@@ -27,14 +27,14 @@ jobs:
       ALARM_BEANS_APP_GROUP: ${{ vars.ALARM_BEANS_APP_GROUP || 'group.com.agawlbb.alarmbeans' }}
       BUILD_NUMBER: ${{ github.run_number }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7.0.1
       - name: Build and test before signing
         run: bash scripts/ci.sh
       - name: Sign and upload to App Store Connect
         run: bash scripts/testflight.sh
       - name: Save signed build and symbols
         if: success()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: alarm-beans-testflight-${{ github.run_number }}
           path: |

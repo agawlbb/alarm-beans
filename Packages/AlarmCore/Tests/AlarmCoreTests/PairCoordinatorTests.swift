@@ -5,8 +5,12 @@ import Testing
 
 @MainActor private final class MemoryStore: AlarmPersistence {
     var state = AlarmSnapshot()
+    var saveFails = false
     func load() throws -> AlarmSnapshot { state }
-    func save(_ snapshot: AlarmSnapshot) throws { state = snapshot }
+    func save(_ snapshot: AlarmSnapshot) throws {
+        if saveFails { throw AlarmError.message("Storage unavailable") }
+        state = snapshot
+    }
 }
 
 @MainActor private final class FakeScheduler: AlarmScheduling {
@@ -32,11 +36,16 @@ import Testing
     var peer: FakeLink?
     var offline = false
     var dropConfirmationReply = false
+    var dropCancellationReply = false
     var queued: [AlarmMessage] = []
     func request(_ message: AlarmMessage) async throws -> AlarmReply {
         guard !offline, let handler = peer?.onMessage else { throw AlarmError.unavailable }
         let reply = await handler(message)
         if dropConfirmationReply && message.kind == .confirmWatch { throw AlarmError.timedOut }
+        if dropCancellationReply && message.kind == .cancel {
+            _ = await onMessage?(AlarmMessage(.cancellationAcknowledged, id: message.id))
+            throw AlarmError.timedOut
+        }
         return reply
     }
     func enqueue(_ message: AlarmMessage) { queued.append(message) }
@@ -114,6 +123,7 @@ import Testing
     await pair.watch.synchronize()
     #expect(pair.phoneScheduler.ids.isEmpty)
     #expect(pair.watch.snapshot.pendingCancellations.isEmpty)
+    #expect(pair.watch.issue == nil)
 }
 
 @Test @MainActor func phoneDismissalStopsWatch() async {
@@ -159,4 +169,36 @@ import Testing
     pair.watch.reportRuntimeFailure(id, detail: "Session expired.")
     #expect(pair.watch.snapshot.record?.blocksNewAlarm == true)
     #expect(pair.phoneScheduler.ids.contains(id))
+}
+
+@Test @MainActor func diskFailureStillStopsLocalHaptics() async {
+    let pair = Pair()
+    await pair.watch.arm()
+    pair.watchStore.saveFails = true
+    await pair.watch.dismissCurrent()
+    #expect(pair.watchScheduler.ids.isEmpty)
+    #expect(pair.watch.snapshot.record?.phase == .cancellationPending)
+    #expect(pair.watch.issue != nil)
+}
+
+@Test @MainActor func pendingLocalCancelCannotBeClearedByRemoteAcknowledgment() async {
+    let pair = Pair()
+    await pair.watch.arm()
+    guard let id = pair.watch.snapshot.record?.occurrence.id else { Issue.record("Missing occurrence"); return }
+    pair.watchScheduler.cancelFails = true
+    await pair.watch.dismissCurrent()
+    let reply = await pair.watch.receive(AlarmMessage(.cancellationAcknowledged, id: id))
+    #expect(!reply.success)
+    #expect(pair.watch.snapshot.pendingCancellations.contains(id))
+    #expect(pair.watch.snapshot.record?.phase == .cancellationPending)
+}
+
+@Test @MainActor func durableAcknowledgmentWinsOverLostLiveReply() async {
+    let pair = Pair()
+    await pair.watch.arm()
+    pair.watchLink.dropCancellationReply = true
+    await pair.watch.dismissCurrent()
+    #expect(pair.watch.snapshot.pendingCancellations.isEmpty)
+    #expect(pair.watch.snapshot.record?.phase == .dismissed)
+    #expect(pair.watch.issue == nil)
 }

@@ -1,5 +1,13 @@
 # TestFlight setup
 
+## Configured deployment
+
+The App IDs and shared App Group below are registered. The [Alarm Beans App Store Connect record](https://appstoreconnect.apple.com/apps/6825210013/distribution) includes its embedded Watch app. The `Alarm Beans Internal` TestFlight group has automatic distribution enabled.
+
+The repository's `testflight` environment contains all nine release secrets and permits deployments from `main` only. The Apple Distribution certificate and all three App Store provisioning profiles expire on October 21, 2027; renew them and replace the corresponding secrets before that date. Keep private keys and profile contents out of Git.
+
+The [first signed upload](https://github.com/agawlbb/alarm-beans/actions/runs/39566224316) passed 24 tests, built and exported the signed archive, and received Apple's upload-success confirmation. TestFlight processing and physical-device validation are separate from upload success.
+
 ## Apple resources
 
 Use the existing Apple Developer Program membership. Register these explicit identifiers (or consistently override the base identifier):
@@ -8,7 +16,7 @@ Use the existing Apple Developer Program membership. Register these explicit ide
 | --- | --- |
 | iPhone | `com.agawlbb.alarmbeans` |
 | Watch | `com.agawlbb.alarmbeans.watchkitapp` |
-| Complication | `com.agawlbb.alarmbeans.watchkitapp.complication` |
+| Complication | `com.agawlbb.alarmbeans.watchkitapp.waketime` |
 
 Register `group.com.agawlbb.alarmbeans` and enable that App Group on all three identifiers. The group is device-local: it shares Watch state with the complication; it does not sync storage across devices. WatchConnectivity performs device synchronization.
 
@@ -48,7 +56,7 @@ Paste into the corresponding GitHub secret field. This command copies the encode
 4. Create an internal TestFlight group, select the processed build, and add your App Store Connect testers. Uploading alone does not create a tester group or invite people.
 5. Install the phone and Watch companion through TestFlight and follow the device-validation checklist.
 
-The release workflow's run number supplies the build number. A rerun uses the same number; after an accepted upload, start a new workflow run for another upload. The marketing version is `0.1.0` in `Config/Base.xcconfig`.
+The release workflow's run number supplies the build number. A rerun uses the same number; after an accepted upload, start a new workflow run for another upload. The marketing version is `1.0` in `Config/Base.xcconfig`, matching the first uploaded build. CI verifies version overrides in the archived phone, Watch, and complication bundles.
 
 The initial manual upload workflow also enables prototype distribution for physical-device testing. An upload is not evidence that the alarm behavior has passed device validation.
 

@@ -72,7 +72,7 @@ options = {
     'provisioningProfiles': {
         bundle: os.environ['ALARM_BEANS_PHONE_PROFILE'],
         bundle + '.watchkitapp': os.environ['ALARM_BEANS_WATCH_PROFILE'],
-        bundle + '.watchkitapp.complication': os.environ['ALARM_BEANS_COMPLICATION_PROFILE'],
+        bundle + '.watchkitapp.waketime': os.environ['ALARM_BEANS_COMPLICATION_PROFILE'],
     },
 }
 with open(os.environ['EXPORT_OPTIONS_PATH'], 'wb') as f:

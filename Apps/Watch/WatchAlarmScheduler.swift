@@ -6,6 +6,7 @@ import WatchKit
     private var session: WKExtendedRuntimeSession?
     private var occurrenceID: UUID?
     private var expectedInvalidations: Set<ObjectIdentifier> = []
+    private var notifiedSessions: Set<ObjectIdentifier> = []
     var coordinator: PairCoordinator?
 
     func schedule(_ occurrence: AlarmOccurrence) async throws {
@@ -51,7 +52,15 @@ import WatchKit
         if runtime.state == .running { beginHaptics(runtime) }
     }
 
+    func refreshAlert() {
+        if let session, session.state == .running { beginHaptics(session) }
+    }
+
     private func beginHaptics(_ runtime: WKExtendedRuntimeSession) {
+        guard !notifiedSessions.contains(ObjectIdentifier(runtime)) else { return }
+        // A near-term wake may start during the final phone acknowledgment.
+        // Wait for the paired arm to finish; onChange retries this method.
+        if coordinator?.snapshot.record?.phase == .preparing { return }
         guard runtime.state == .running,
               let coordinator, let record = coordinator.snapshot.record,
               !coordinator.snapshot.dismissedIDs.contains(record.occurrence.id),
@@ -67,6 +76,7 @@ import WatchKit
         }
         occurrenceID = record.occurrence.id
         let interval = Double(record.occurrence.settings.hapticSeconds)
+        notifiedSessions.insert(ObjectIdentifier(runtime))
         coordinator.markAlerting(record.occurrence.id)
         runtime.notifyUser(hapticType: .notification, repeatHandler: { _ in interval })
     }
@@ -87,11 +97,16 @@ import WatchKit
                                            error: Error?) {
         Task { @MainActor [weak self] in
             guard let self else { return }
+            notifiedSessions.remove(ObjectIdentifier(extendedRuntimeSession))
             if expectedInvalidations.remove(ObjectIdentifier(extendedRuntimeSession)) != nil { return }
             guard session === extendedRuntimeSession, let id = occurrenceID else { return }
             session = nil
             occurrenceID = nil
-            guard let coordinator, !coordinator.snapshot.dismissedIDs.contains(id) else { return }
+            guard let coordinator else { return }
+            if coordinator.snapshot.dismissedIDs.contains(id) {
+                await coordinator.dismiss(id)
+                return
+            }
             if let error {
                 coordinator.reportRuntimeFailure(id, detail: error.localizedDescription)
             } else if reason != .none || Date() >= (coordinator.snapshot.record?.occurrence.watchExpiry ?? .distantPast) {

@@ -13,12 +13,15 @@ import WidgetKit
     private init() {
         coordinator = PairCoordinator(role: .watch, scheduler: scheduler, link: link, persistence: makeStore())
         scheduler.coordinator = coordinator
-        coordinator.onChange = { WidgetCenter.shared.reloadTimelines(ofKind: "AlarmBeansWakeTime") }
+        coordinator.onChange = { [weak scheduler] in
+            scheduler?.refreshAlert()
+            WidgetCenter.shared.reloadTimelines(ofKind: "AlarmBeansWakeTime")
+        }
         link.activate()
     }
 }
 
-final class WatchAppDelegate: NSObject, WKApplicationDelegate {
+@MainActor final class WatchAppDelegate: NSObject, WKApplicationDelegate {
     func handle(_ extendedRuntimeSession: WKExtendedRuntimeSession) {
         WatchRuntime.shared.scheduler.restore(extendedRuntimeSession)
     }

@@ -20,7 +20,7 @@ struct AlarmHomeView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 20) {
-                    header
+                    if coordinator.role == .phone || !hasAlarm { header }
                     if hasAlarm, let record = coordinator.snapshot.record {
                         activeAlarm(record)
                     } else {
@@ -59,6 +59,9 @@ struct AlarmHomeView: View {
     }
 
     private var header: some View {
+        #if os(watchOS)
+        Text("A quieter morning.").font(.headline)
+        #else
         VStack(alignment: .leading, spacing: 6) {
             Image(systemName: "leaf.fill").font(.title).foregroundStyle(beanGreen).accessibilityHidden(true)
             Text(hasAlarm ? "Rest easy." : "A quieter morning.")
@@ -66,6 +69,7 @@ struct AlarmHomeView: View {
             Text("A gentle tap first. A sound if you need it.")
                 .font(.footnote).foregroundStyle(.secondary)
         }
+        #endif
     }
 
     private var editor: some View {
@@ -75,16 +79,6 @@ struct AlarmHomeView: View {
                 #if os(iOS)
                 .datePickerStyle(.wheel)
                 #endif
-            if let occurrence = try? coordinator.snapshot.settings.value.nextOccurrence(after: Date()) {
-                TimelineView(.everyMinute) { context in
-                    VStack(alignment: .leading, spacing: 14) {
-                        AlarmTimeView(title: "Silent Watch wake-up", date: occurrence.wakeTime, now: context.date,
-                                      icon: "applewatch.radiowaves.left.and.right", dueText: "Wake time reached")
-                        AlarmTimeView(title: "Audible iPhone fallback", date: occurrence.fallbackTime, now: context.date,
-                                      icon: "speaker.wave.2", dueText: "Fallback time reached")
-                    }
-                }
-            }
             #if os(watchOS)
             Button {
                 Task { await coordinator.arm() }
@@ -96,7 +90,18 @@ struct AlarmHomeView: View {
             }
             .buttonStyle(.borderedProminent).disabled(coordinator.busy)
             Text("Keep this app open until Armed appears.").font(.caption2).foregroundStyle(.secondary)
-            #else
+            #endif
+            if let occurrence = try? coordinator.snapshot.settings.value.nextOccurrence(after: Date()) {
+                TimelineView(.everyMinute) { context in
+                    VStack(alignment: .leading, spacing: 14) {
+                        AlarmTimeView(title: "Silent Watch wake-up", date: occurrence.wakeTime, now: context.date,
+                                      icon: "applewatch.radiowaves.left.and.right", dueText: "Wake time reached")
+                        AlarmTimeView(title: "Audible iPhone fallback", date: occurrence.fallbackTime, now: context.date,
+                                      icon: "speaker.wave.2", dueText: "Fallback time reached")
+                    }
+                }
+            }
+            #if os(iOS)
             Label("Open Alarm Beans on your Watch and tap Arm both alarms.", systemImage: "applewatch")
                 .font(.subheadline).foregroundStyle(beanGreen)
             #endif
@@ -108,6 +113,9 @@ struct AlarmHomeView: View {
             Label(statusTitle(record), systemImage: statusIcon(record))
                 .font(.headline).foregroundStyle(record.phase == .armed ? beanGreen : .orange)
                 .accessibilityIdentifier("alarm.status")
+            #if os(watchOS)
+            stopButton(record)
+            #endif
             TimelineView(.everyMinute) { context in
                 VStack(alignment: .leading, spacing: 14) {
                     AlarmTimeView(title: "Silent Watch wake-up", date: record.occurrence.wakeTime, now: context.date,
@@ -117,16 +125,22 @@ struct AlarmHomeView: View {
                 }
             }
             if let detail = record.detail { Text(detail).font(.footnote).foregroundStyle(.orange) }
-            Button(role: .destructive) {
-                Task { await coordinator.dismissCurrent() }
-            } label: {
-                Label(record.phase == .cancellationPending ? "Retry cancellation" : "Stop both alarms", systemImage: "stop.fill")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.bordered)
-            .disabled(coordinator.busy)
-            .accessibilityIdentifier("alarm.stop")
+            #if os(iOS)
+            stopButton(record)
+            #endif
         }
+    }
+
+    private func stopButton(_ record: AlarmRecord) -> some View {
+        Button(role: .destructive) {
+            Task { await coordinator.dismissCurrent() }
+        } label: {
+            Label(record.phase == .cancellationPending ? "Retry cancellation" : "Stop both alarms", systemImage: "stop.fill")
+                .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.bordered)
+        .disabled(coordinator.busy)
+        .accessibilityIdentifier("alarm.stop")
     }
 
     private func statusTitle(_ record: AlarmRecord) -> String {

@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MPL-2.0
 import AlarmCore
 import SwiftUI
+#if os(watchOS)
+import WatchKit
+#endif
 
 private let beanGreen = Color(red: 0.64, green: 0.87, blue: 0.52)
 
@@ -13,6 +16,24 @@ struct AlarmHomeView: View {
     private var hasAlarm: Bool {
         guard let record = coordinator.snapshot.record else { return false }
         return record.blocksNewAlarm || record.phoneScheduled || record.watchScheduled
+    }
+
+    private var phoneStopPending: Bool {
+        coordinator.role == .phone && coordinator.snapshot.record?.phase == .cancellationPending
+    }
+
+    private var showsCountdown: Bool {
+        #if os(watchOS)
+        return coordinator.snapshot.record?.phase == .armed
+        #else
+        return !phoneStopPending
+        #endif
+    }
+
+    private var visibleIssue: String? {
+        // Cancellation continues durably, without an alert on the phone's main screen.
+        if phoneStopPending { return nil }
+        return coordinator.issue ?? (hasAlarm ? coordinator.snapshot.record?.detail : nil)
     }
 
     private var settings: Binding<AlarmSettings> {
@@ -32,7 +53,7 @@ struct AlarmHomeView: View {
                                 Text(status)
                                     .font(.caption).foregroundStyle(statusColor)
                                     .accessibilityIdentifier("alarm.status")
-                                if let date {
+                                if showsCountdown, let date {
                                     let remaining = RemainingTime(until: date, now: context.date)
                                     Text(remaining.isDue ? "Alarm time reached" : remaining.text)
                                         .font(.footnote).foregroundStyle(.secondary)
@@ -42,7 +63,7 @@ struct AlarmHomeView: View {
                             }
                         }
                         action
-                        if let message = coordinator.issue ?? (hasAlarm ? coordinator.snapshot.record?.detail : nil) {
+                        if let message = visibleIssue {
                             Label(message, systemImage: "exclamationmark.triangle")
                                 .font(.footnote).foregroundStyle(.orange)
                         }
@@ -53,16 +74,26 @@ struct AlarmHomeView: View {
                 }
             }
             .background(Color.black)
-            #if os(iOS)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem {
+                    #if os(watchOS)
+                    if !hasAlarm && !coordinator.busy {
+                        Button("Settings", systemImage: "gearshape") { showingSettings = true }
+                            .foregroundStyle(.secondary)
+                    }
+                    #else
                     Button("Settings", systemImage: "gearshape") { showingSettings = true }
                         .foregroundStyle(.secondary)
+                    #endif
                 }
             }
             .sheet(isPresented: $showingSettings) {
                 AlarmSettingsView(coordinator: coordinator, authorize: authorize, locked: hasAlarm || coordinator.busy)
             }
+            .onChange(of: hasAlarm) { _, active in
+                if active { showingSettings = false }
+            }
+            #if os(iOS)
             .sheet(isPresented: $editingTime) {
                 NavigationStack {
                     DatePicker("Alarm time", selection: wakeBinding, displayedComponents: .hourAndMinute)
@@ -110,14 +141,13 @@ struct AlarmHomeView: View {
 
     @ViewBuilder private var action: some View {
         if hasAlarm {
-            Button(role: .destructive) {
-                Task { await coordinator.dismissCurrent() }
-            } label: {
-                Text(coordinator.snapshot.record?.phase == .cancellationPending ? "Retry stop" : "Stop")
-                    .frame(maxWidth: .infinity)
+            if !phoneStopPending {
+                if coordinator.snapshot.record?.phase == .alerting {
+                    stopButton.buttonStyle(.borderedProminent).tint(.red)
+                } else {
+                    stopButton.buttonStyle(.bordered)
+                }
             }
-            .buttonStyle(.bordered).disabled(coordinator.busy)
-            .accessibilityLabel("Stop both alarms").accessibilityIdentifier("alarm.stop")
         } else {
             #if os(watchOS)
             Button {
@@ -136,6 +166,18 @@ struct AlarmHomeView: View {
         }
     }
 
+    private var stopButton: some View {
+        Button(role: .destructive) {
+            Task { await coordinator.dismissCurrent() }
+        } label: {
+            Text(coordinator.snapshot.record?.phase == .cancellationPending ? "Retry stop" : "Stop")
+                .font(coordinator.snapshot.record?.phase == .alerting ? .title3.weight(.semibold) : .body)
+                .frame(maxWidth: .infinity, minHeight: coordinator.snapshot.record?.phase == .alerting ? 48 : nil)
+        }
+        .disabled(coordinator.busy)
+        .accessibilityLabel("Stop both alarms").accessibilityIdentifier("alarm.stop")
+    }
+
     private var status: String {
         guard hasAlarm, let record = coordinator.snapshot.record else {
             return coordinator.busy ? "Arming…" : "Inactive"
@@ -144,14 +186,14 @@ struct AlarmHomeView: View {
         case .preparing: return "Arming…"
         case .armed: return "Active"
         case .alerting: return "Ringing"
-        case .cancellationPending: return "Stop pending"
+        case .cancellationPending: return phoneStopPending ? "Inactive" : "Stop pending"
         case .failed: return "Action needed"
         case .dismissed: return "Inactive"
         }
     }
 
     private var statusColor: Color {
-        guard hasAlarm else { return .secondary }
+        guard hasAlarm && !phoneStopPending else { return .secondary }
         switch coordinator.snapshot.record?.phase {
         case .armed, .alerting: return beanGreen
         default: return .orange
@@ -173,7 +215,6 @@ struct AlarmHomeView: View {
     }
 }
 
-#if os(iOS)
 private struct AlarmSettingsView: View {
     @Bindable var coordinator: PairCoordinator
     var authorize: (() async throws -> Void)?
@@ -184,17 +225,22 @@ private struct AlarmSettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Timing") {
+                Section {
+                    Picker("Haptic pattern", selection: pattern) {
+                        ForEach(AlarmHapticPattern.allCases, id: \.self) { pattern in
+                            Text(pattern.title).tag(pattern)
+                        }
+                    }
                     Stepper(value: setting(\.fallbackMinutes), in: 1...30) {
-                        Text("Phone backup: \(coordinator.snapshot.settings.value.fallbackMinutes) min later")
+                        Text("Phone offset: \(coordinator.snapshot.settings.value.fallbackMinutes) min")
                     }
                     Stepper(value: setting(\.hapticSeconds), in: 1...60) {
-                        Text("Watch taps every \(coordinator.snapshot.settings.value.hapticSeconds) sec")
+                        Text("Haptic interval: \(coordinator.snapshot.settings.value.hapticSeconds) sec")
                     }
                 }.disabled(locked)
-                if locked {
-                    Text("Stop the current alarm to change timing.")
-                        .font(.footnote).foregroundStyle(.secondary)
+                #if os(iOS)
+                if let issue = coordinator.issue ?? coordinator.snapshot.record?.detail {
+                    Section("Status") { Text(issue) }
                 }
                 Section("Setup") {
                     if let authorize {
@@ -206,19 +252,28 @@ private struct AlarmSettingsView: View {
                         }
                     }
                     if let permissionMessage { Text(permissionMessage) }
-                    Text("Choose your alarm time, then open Alarm Beans on your Watch and tap Arm. Keep it open until Active appears.")
-                    Text("Add the Alarm Beans complication in your Watch face editor to see the active alarm time.")
-                    Text("Stopping on iPhone may leave Watch taps running until you open Alarm Beans on the Watch. You can also use Stop on the Watch alert.")
                 }
                 Section("About") {
-                    Text("Alarm Beans · A quieter wake-up, with an audible backup.")
                     Link("Source code · MPL-2.0", destination: URL(string: "https://github.com/agawlbb/alarm-beans")!)
                     Link("Mozilla Public License 2.0", destination: URL(string: "https://mozilla.org/MPL/2.0/")!)
                 }
+                #endif
             }
             .navigationTitle("Settings")
             .toolbar { ToolbarItem { Button("Done") { dismiss() } } }
         }
+    }
+
+    private var pattern: Binding<AlarmHapticPattern> {
+        Binding(get: { coordinator.snapshot.settings.value.hapticPattern }, set: { pattern in
+            guard !locked else { return }
+            var settings = coordinator.snapshot.settings.value
+            settings.hapticPattern = pattern
+            coordinator.updateSettings(settings)
+            #if os(watchOS)
+            WatchKit.WKInterfaceDevice.current().play(pattern.watchHaptic)
+            #endif
+        })
     }
 
     private func setting(_ key: WritableKeyPath<AlarmSettings, Int>) -> Binding<Int> {
@@ -230,4 +285,3 @@ private struct AlarmSettingsView: View {
         })
     }
 }
-#endif

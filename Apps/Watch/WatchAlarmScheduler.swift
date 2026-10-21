@@ -100,7 +100,8 @@ import WatchKit
         let interval = Double(record.occurrence.settings.hapticSeconds)
         notifiedSessions.insert(ObjectIdentifier(runtime))
         coordinator.markAlerting(record.occurrence.id)
-        runtime.notifyUser(hapticType: .notification, repeatHandler: { _ in interval })
+        runtime.notifyUser(hapticType: record.occurrence.settings.hapticPattern.watchHaptic,
+                           repeatHandler: { _ in interval })
     }
 
     nonisolated func extendedRuntimeSessionDidStart(_ extendedRuntimeSession: WKExtendedRuntimeSession) {

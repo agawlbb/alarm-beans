@@ -44,6 +44,10 @@ If a core requirement fails, retain the native phone fallback and report the exa
 - [ ] Verify time disappears after the Watch session's maximum lifetime, even without a fresh application launch.
 - [ ] Verify both main screens show only the Watch alarm time, activity status, and hours and minutes remaining. No backup time, calendar date, or introductory copy appears. Countdown updates at minute boundaries, refreshes on resume, and never goes negative.
 - [ ] On Watch, tap hour/minute to focus it and turn the Crown. Verify forward/backward wrapping (12 to 1, 59 to 00; 23 to 00 in 24-hour mode), independent fields, AM/PM selection, and VoiceOver adjustment. Active alarms cannot be edited.
+- [ ] Switch hours to minutes and back repeatedly, including during a Crown turn. The first movement edits only the selected field; leftover partial turns must not transfer. Verify the slower hour/minute stepping on hardware and haptic feedback only for actual value changes.
+- [ ] On Watch, verify no inactive countdown, and a settings gear only when inactive. Settings contains only Haptic pattern, Haptic interval, Phone offset, and Done. Verify pattern selection previews a haptic, persists after relaunch, synchronizes to phone, and is used by the next scheduled alarm. Upgrade from build 5 with saved settings and an active occurrence; absent pattern fields default to Notification.
+- [ ] Stop on iPhone while the Watch app is inactive. Its main screen shows Inactive without pending text or retry controls, but Settings retains cancellation status. Opening the Watch must still complete the durable pending cancellation.
+- [ ] While ringing, open the Watch app and verify the larger Stop button is visible. Confirm Alarm Beans makes no attempt to illuminate the display or change Sleep Focus.
 - [ ] On iPhone, tap the inactive time to edit. Verify the gear button opens timing, permissions, setup, and About, and remains available while active with timing changes disabled.
 - [ ] Verify VoiceOver, larger text, dimmed/Always On rendering, and sufficient contrast.
 

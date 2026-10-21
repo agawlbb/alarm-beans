@@ -23,12 +23,27 @@ public struct AlarmSettings: Codable, Equatable, Sendable {
     public var minute: Int
     public var fallbackMinutes: Int
     public var hapticSeconds: Int
+    public var hapticPattern: AlarmHapticPattern
 
-    public init(hour: Int = 7, minute: Int = 0, fallbackMinutes: Int = 5, hapticSeconds: Int = 5) {
+    public init(hour: Int = 7, minute: Int = 0, fallbackMinutes: Int = 5, hapticSeconds: Int = 5,
+                hapticPattern: AlarmHapticPattern = .notification) {
         self.hour = hour
         self.minute = minute
         self.fallbackMinutes = fallbackMinutes
         self.hapticSeconds = hapticSeconds
+        self.hapticPattern = hapticPattern
+    }
+
+    private enum CodingKeys: String, CodingKey { case hour, minute, fallbackMinutes, hapticSeconds, hapticPattern }
+
+    public init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        hour = try values.decode(Int.self, forKey: .hour)
+        minute = try values.decode(Int.self, forKey: .minute)
+        fallbackMinutes = try values.decode(Int.self, forKey: .fallbackMinutes)
+        hapticSeconds = try values.decode(Int.self, forKey: .hapticSeconds)
+        // Builds before pattern selection have no field, including saved occurrences.
+        hapticPattern = try values.decodeIfPresent(AlarmHapticPattern.self, forKey: .hapticPattern) ?? .notification
     }
 
     public func validate() throws {

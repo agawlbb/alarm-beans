@@ -202,3 +202,29 @@ import Testing
     #expect(pair.watch.snapshot.record?.phase == .dismissed)
     #expect(pair.watch.issue == nil)
 }
+
+@Test @MainActor func patternAndTimingReachBothScheduledOccurrences() async {
+    let pair = Pair()
+    pair.watch.updateSettings(AlarmSettings(fallbackMinutes: 7, hapticSeconds: 3, hapticPattern: .retry))
+    await pair.watch.arm()
+    #expect(pair.phone.snapshot.record?.occurrence.settings.hapticPattern == .retry)
+    #expect(pair.watch.snapshot.record?.occurrence.settings.hapticPattern == .retry)
+    #expect(pair.phone.snapshot.record?.occurrence.settings.fallbackMinutes == 7)
+    #expect(pair.phone.snapshot.record?.occurrence.settings.hapticSeconds == 3)
+}
+
+@Test @MainActor func phoneStopKeepsDurableWatchCancellationWhenOffline() async {
+    let pair = Pair()
+    await pair.watch.arm()
+    let id = pair.phone.snapshot.record!.occurrence.id
+    pair.phoneLink.offline = true
+    await pair.phone.dismissCurrent()
+    #expect(pair.phoneScheduler.ids.isEmpty)
+    #expect(pair.watchScheduler.ids.contains(id))
+    #expect(pair.phone.snapshot.pendingCancellations.contains(id))
+    #expect(pair.phone.snapshot.dismissedIDs.contains(id))
+    pair.phoneLink.offline = false
+    await pair.phone.synchronize()
+    #expect(pair.watchScheduler.ids.isEmpty)
+    #expect(pair.phone.snapshot.pendingCancellations.isEmpty)
+}

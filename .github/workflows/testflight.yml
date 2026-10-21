@@ -41,4 +41,14 @@ jobs:
             build/Export/*.ipa
             build/AlarmBeans.xcarchive/dSYMs
           retention-days: 14
+      - name: Capture simulator interface previews
+        continue-on-error: true
+        timeout-minutes: 7
+        run: bash scripts/preview.sh
+      - name: Save interface previews
+        uses: actions/upload-artifact@v7.0.2
+        with:
+          name: alarm-beans-interface-${{ github.run_number }}
+          path: build/Previews/*.png
+          if-no-files-found: warn
 

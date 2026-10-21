@@ -9,12 +9,12 @@ A quieter morning: repeating Apple Watch haptics at your wake time, followed by 
 ## Use
 
 1. Install the iPhone app and its Watch companion on iOS 26 / watchOS 26 or later.
-2. Open **Setup & alarm permission** on iPhone and allow alarms.
+2. Open the gear button on iPhone and allow alarms in **Settings**.
 3. Choose a wake time on either device. Timing settings default to a five-minute fallback and Watch haptics every five seconds.
-4. On the Watch, tap **Arm both alarms** and keep the app open until **Armed** appears.
-5. Tap **Stop both alarms** on either device to dismiss. If cancellation is pending, the other device may still alert; open both apps to confirm.
+4. On the Watch, tap the hour or minute digits and turn the Digital Crown to edit. Each field wraps independently in either direction. In 12-hour mode, tap AM/PM to change period. Tap **Arm** and keep the app open until **Active** appears.
+5. Tap **Stop** on either device to dismiss. If cancellation is pending, the other device may still alert; open both apps to confirm.
 
-Both apps show the scheduled date/time and hours and minutes remaining. Settings are remembered; one upcoming wake-up is supported, without recurrence or snooze.
+Both apps show only the Watch alarm time, activity status, and hours and minutes remaining. Tap the inactive time on iPhone to edit it. The iPhone gear button contains backup offset, haptic interval, permissions, and About. Stop an active alarm before changing its time or timing settings. Settings are remembered; one upcoming wake-up is supported, without recurrence or snooze.
 
 Add **Alarm Beans** through the Watch face complication editor. Circular, rectangular, inline, and corner layouts show the wake time only for a confirmed active pair. An inactive alarm shows no time; an attention icon means open the app. Tapping always opens the alarm screen. watchOS controls the timing of complication refreshes.
 

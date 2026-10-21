@@ -1,6 +1,14 @@
 # Physical-device acceptance
 
-Status: **not yet executed**. Record results, device models, OS versions, build number, and dates here for the first internal TestFlight build. Do not infer device reliability from simulator builds or shared-package tests.
+Status: **partial user testing; paired dismissal failed**. Record results, device models, OS versions, build number, and dates here. Do not infer device reliability from simulator builds or shared-package tests.
+
+## Reported results — October 21, 2026
+
+During the build 1.0 (3) test session, the user reported successful arming and Watch haptic playback. The user then reported that swiping to dismiss the iPhone Lock Screen alarm stopped the phone alarm but left the Watch alerting. Exact device models, OS versions, and timing measurements were not supplied. Overnight operation remains unverified.
+
+This fails the requirement that dismissal on either device immediately stops both. The Watch adapter rejects session invalidation while its app is inactive, following [Apple's documented restriction](https://developer.apple.com/documentation/watchkit/wkextendedruntimesession/invalidate%28%29). A delivered cancellation is persisted and retried when the Watch app becomes active. This restriction alone can explain continued Watch haptics; the report does not establish whether the phone's stop intent ran or the cancellation message arrived. Retest those paths separately before attributing the entire failure to message delivery or the Lock Screen gesture.
+
+For the current build, stop through the Watch system alert or open Alarm Beans on the Watch to complete cancellation. Verify that opening the Watch app after phone dismissal stops its session and clears the pending state. Immediate remote dismissal of a background Watch alert remains an unresolved platform/design requirement.
 
 ## Feasibility gate
 
@@ -34,7 +42,9 @@ If a core requirement fails, retain the native phone fallback and report the exa
 - [ ] Observe watchOS refresh latency after stopping on either device. The app requests reloads, but watchOS controls when they render.
 - [ ] Tap the complication while inactive, armed, alerting, and while the app is in settings. Each tap reaches the main alarm screen with setting/view/dismiss controls.
 - [ ] Verify time disappears after the Watch session's maximum lifetime, even without a fresh application launch.
-- [ ] Verify both apps show hours and minutes remaining for every displayed upcoming wake/fallback time, update at minute boundaries, refresh on resume, and show no negative countdown.
+- [ ] Verify both main screens show only the Watch alarm time, activity status, and hours and minutes remaining. No backup time, calendar date, or introductory copy appears. Countdown updates at minute boundaries, refreshes on resume, and never goes negative.
+- [ ] On Watch, tap hour/minute to focus it and turn the Crown. Verify forward/backward wrapping (12 to 1, 59 to 00; 23 to 00 in 24-hour mode), independent fields, AM/PM selection, and VoiceOver adjustment. Active alarms cannot be edited.
+- [ ] On iPhone, tap the inactive time to edit. Verify the gear button opens timing, permissions, setup, and About, and remains available while active with timing changes disabled.
 - [ ] Verify VoiceOver, larger text, dimmed/Always On rendering, and sufficient contrast.
 
 ## Overnight trial log

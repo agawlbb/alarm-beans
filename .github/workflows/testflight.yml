@@ -1,7 +1,15 @@
 # SPDX-License-Identifier: MPL-2.0
-name: Upload internal TestFlight build
+name: Prepare signed build
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
+    inputs:
+      publish:
+        description: Upload and automatically distribute to TestFlight
+        type: boolean
+        default: false
+        required: true
 permissions:
   contents: read
 concurrency:
@@ -26,11 +34,12 @@ jobs:
       ALARM_BEANS_BUNDLE_ID: ${{ vars.ALARM_BEANS_BUNDLE_ID || 'com.agawlbb.alarmbeans' }}
       ALARM_BEANS_APP_GROUP: ${{ vars.ALARM_BEANS_APP_GROUP || 'group.com.agawlbb.alarmbeans' }}
       BUILD_NUMBER: ${{ github.run_number }}
+      UPLOAD_TO_TESTFLIGHT: ${{ inputs.publish || false }}
     steps:
       - uses: actions/checkout@v7.0.1
       - name: Build and test before signing
         run: bash scripts/ci.sh
-      - name: Sign and upload to App Store Connect
+      - name: Sign and export (upload only when explicitly enabled)
         run: bash scripts/testflight.sh
       - name: Save signed build and symbols
         if: success()
@@ -43,12 +52,11 @@ jobs:
           retention-days: 14
       - name: Capture simulator interface previews
         continue-on-error: true
-        timeout-minutes: 7
-        run: bash scripts/preview.sh
+        timeout-minutes: 12
+        run: bash scripts/watch-review.sh
       - name: Save interface previews
         uses: actions/upload-artifact@v7.0.2
         with:
           name: alarm-beans-interface-${{ github.run_number }}
-          path: build/Previews/*.png
+          path: build/WatchReview/*.png
           if-no-files-found: warn
-

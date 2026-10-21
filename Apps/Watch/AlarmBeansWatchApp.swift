@@ -41,11 +41,24 @@ import WidgetKit
     @WKApplicationDelegateAdaptor(WatchAppDelegate.self) private var appDelegate
     @Environment(\.scenePhase) private var scenePhase
     @State private var navigationID = UUID()
-    private let runtime = WatchRuntime.shared
+    private var runtime: WatchRuntime { WatchRuntime.shared }
 
     var body: some Scene {
         WindowGroup {
-            AlarmHomeView(coordinator: runtime.coordinator)
+            #if DEBUG
+            if let review = WatchInterfaceReview.requestedScreen {
+                WatchInterfaceReview(screen: review)
+            } else {
+                alarmHome
+            }
+            #else
+            alarmHome
+            #endif
+        }
+    }
+
+    private var alarmHome: some View {
+            WatchAlarmHomeView(coordinator: runtime.coordinator)
                 .id(navigationID)
                 .onOpenURL { url in
                     guard url.scheme == "alarmbeans", url.host == "alarm" else { return }
@@ -57,7 +70,6 @@ import WidgetKit
                     if phase == .active { Task { await runtime.coordinator.synchronize() } }
                     if phase == .background { WidgetCenter.shared.reloadTimelines(ofKind: "AlarmBeansWakeTime") }
                 }
-        }
     }
 }
 

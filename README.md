@@ -16,7 +16,9 @@ A quieter morning: repeating Apple Watch haptics at your wake time, followed by 
 
 Both apps show the Watch alarm time and activity status. The Watch shows time remaining only for an active alarm. Tap the inactive time on iPhone to edit it. The Watch gear appears only when inactive and contains haptic pattern, haptic interval, and phone offset; selecting a pattern previews it on the Watch. The iPhone gear also contains permissions, About, and cancellation status. After stopping on iPhone, its main screen shows Inactive while durable Watch cancellation retries continue. Stop an active alarm before changing its time or timing settings. Settings are remembered; one upcoming wake-up is supported, without recurrence or snooze.
 
-Crown input has one owner for the entire time editor. Switching fields resets accumulated rotation and invalidates queued callbacks from the previous selection. Hours require four input units per step and minutes two, both at the system's low sensitivity; feedback plays only when a displayed number changes. Alarm start does not request display illumination. The ringing screen has a larger Stop control.
+Crown input has one owner for the entire time editor. Switching fields resets accumulated rotation and invalidates queued callbacks from the previous selection. Hours require two input units per step and minutes one, both at the system's low sensitivity; feedback plays only when a displayed number changes. Alarm start does not request display illumination. The ringing screen has a larger Stop control.
+
+The Watch has dedicated layouts: an explicit gear beside Arm, compact settings rows, and separate pattern/interval/offset lists. Pattern buttons preview and check a choice without navigating back. The phone's form is not used on the Watch.
 
 Add **Alarm Beans** through the Watch face complication editor. Circular, rectangular, inline, and corner layouts show the wake time only for a confirmed active pair. An inactive alarm shows no time; an attention icon means open the app. Tapping always opens the alarm screen. watchOS controls the timing of complication refreshes.
 
@@ -45,7 +47,7 @@ Run `bash scripts/bootstrap.sh`, open the generated project in Xcode, and select
 
 ## TestFlight
 
-The manual **Upload internal TestFlight build** workflow builds, tests, signs, and uploads the paired app from `main`. It requires your Apple signing assets and App Store Connect configuration. Follow [TestFlight setup](docs/testflight.md). No credentials are stored in this repository.
+The manual **Prepare signed build** workflow builds, tests, signs, and exports the paired app from `main`. TestFlight upload is disabled by default; its explicit **publish** input must be enabled to upload and automatically distribute to the existing internal group. With publish off, the signed IPA and symbols remain GitHub artifacts. It requires your Apple signing assets; upload additionally requires App Store Connect configuration. Follow [TestFlight setup](docs/testflight.md). No credentials are stored in this repository.
 
 ## Structure
 

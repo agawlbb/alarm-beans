@@ -51,14 +51,14 @@ Paste into the corresponding GitHub secret field. This command copies the encode
 ## Upload and internal testing
 
 1. Confirm the **Build and test** workflow passes for the intended `main` commit.
-2. Run **Upload internal TestFlight build** on `main`. It runs the tests again, signs all embedded targets, and uploads the IPA. Signing material is removed by the script's exit trap; the Mac runner is ephemeral.
+2. Run **Prepare signed build** on `main`. Leave **publish** off to build, test, sign, and export a downloadable IPA without any TestFlight upload or release. Enable **publish** only when a TestFlight release is explicitly intended; the existing internal group's automatic distribution applies after upload. Signing material is removed by the script's exit trap; the Mac runner is ephemeral.
 3. Wait for App Store Connect processing and resolve any signing, metadata, or export-compliance messages.
 4. Create an internal TestFlight group, select the processed build, and add your App Store Connect testers. Uploading alone does not create a tester group or invite people.
 5. Install the phone and Watch companion through TestFlight and follow the device-validation checklist.
 
 The release workflow's run number supplies the build number. A rerun uses the same number; after an accepted upload, start a new workflow run for another upload. The marketing version is `1.0` in `Config/Base.xcconfig`, matching the first uploaded build. CI verifies version overrides in the archived phone, Watch, and complication bundles.
 
-The initial manual upload workflow also enables prototype distribution for physical-device testing. An upload is not evidence that the alarm behavior has passed device validation.
+The script also defaults `UPLOAD_TO_TESTFLIGHT` to `false`; calling it directly exports only unless that flag is explicitly `true`. Export-only runs do not decode the App Store Connect API key or call the upload tool. Simulator review fixtures and screenshots are Debug-only and do not alter release alarm behavior. An upload is not evidence that the alarm behavior has passed device validation.
 
 Before external testing, complete the physical tests, supply beta description, feedback/contact details and review notes explaining the paired alarm behavior, and submit for Apple's beta review. Configure the external group only after that step; the workflow does not automatically invite external testers.
 

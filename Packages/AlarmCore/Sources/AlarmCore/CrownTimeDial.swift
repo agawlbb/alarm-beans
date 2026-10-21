@@ -30,7 +30,7 @@ public struct CrownTimeDial: Sendable {
         if delta < -Self.limit { delta += period }
         position = value
         remainder += delta
-        let units: Double = field == .hour ? 4 : 2
+        let units: Double = field == .hour ? 2 : 1
         let steps = Int(remainder / units)
         guard steps != 0 else { return false }
         remainder -= Double(steps) * units

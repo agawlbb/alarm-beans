@@ -6,14 +6,14 @@ import Testing
 @Test func crownRequiresMoreMovementForHoursThanMinutes() {
     var input = CrownTimeDial()
     var settings = AlarmSettings(hour: 7, minute: 0)
-    #expect(!input.move(to: 3, generation: 0, settings: &settings, uses24Hour: false))
+    #expect(!input.move(to: 1, generation: 0, settings: &settings, uses24Hour: false))
     #expect(settings.hour == 7)
-    #expect(input.move(to: 4, generation: 0, settings: &settings, uses24Hour: false))
+    #expect(input.move(to: 2, generation: 0, settings: &settings, uses24Hour: false))
     #expect(settings.hour == 8)
     input.select(.minute)
     let generation = input.generation
-    #expect(!input.move(to: 1, generation: generation, settings: &settings, uses24Hour: false))
-    #expect(input.move(to: 2, generation: generation, settings: &settings, uses24Hour: false))
+    #expect(!input.move(to: 0.5, generation: generation, settings: &settings, uses24Hour: false))
+    #expect(input.move(to: 1, generation: generation, settings: &settings, uses24Hour: false))
     #expect(settings.minute == 1)
     #expect(settings.hour == 8)
 }
@@ -21,19 +21,19 @@ import Testing
 @Test func switchingFieldsRejectsOldCrownCallbacksAndClearsPartialTurns() {
     var input = CrownTimeDial()
     var settings = AlarmSettings(hour: 12, minute: 59)
-    _ = input.move(to: 3, generation: 0, settings: &settings, uses24Hour: false)
+    _ = input.move(to: 1, generation: 0, settings: &settings, uses24Hour: false)
     input.select(.minute)
     let minuteGeneration = input.generation
     #expect(!input.move(to: 8, generation: 0, settings: &settings, uses24Hour: false))
     #expect(settings.hour == 12)
     #expect(input.position == 0)
-    #expect(input.move(to: 2, generation: minuteGeneration, settings: &settings, uses24Hour: false))
+    #expect(input.move(to: 1, generation: minuteGeneration, settings: &settings, uses24Hour: false))
     #expect(settings.minute == 0)
     #expect(settings.hour == 12)
     input.select(.hour)
     let hourGeneration = input.generation
     #expect(!input.move(to: 4, generation: minuteGeneration, settings: &settings, uses24Hour: false))
-    #expect(input.move(to: 4, generation: hourGeneration, settings: &settings, uses24Hour: false))
+    #expect(input.move(to: 2, generation: hourGeneration, settings: &settings, uses24Hour: false))
     #expect(settings.hour == 13)
     #expect(settings.minute == 0)
 }
@@ -41,14 +41,14 @@ import Testing
 @Test func crownWrapsBackwardsAndPreservesAMPM() {
     var input = CrownTimeDial()
     var settings = AlarmSettings(hour: 12, minute: 0)
-    _ = input.move(to: -4, generation: 0, settings: &settings, uses24Hour: false)
+    _ = input.move(to: -2, generation: 0, settings: &settings, uses24Hour: false)
     #expect(settings.hour == 23)
     input.select(.minute)
-    _ = input.move(to: -2, generation: input.generation, settings: &settings, uses24Hour: false)
+    _ = input.move(to: -1, generation: input.generation, settings: &settings, uses24Hour: false)
     #expect(settings.minute == 59)
     #expect(settings.hour == 23)
     input.select(.hour)
-    _ = input.move(to: 4, generation: input.generation, settings: &settings, uses24Hour: true)
+    _ = input.move(to: 2, generation: input.generation, settings: &settings, uses24Hour: true)
     #expect(settings.hour == 0)
 }
 
@@ -59,7 +59,7 @@ import Testing
         let old = input.generation
         input.select(.minute)
         _ = input.move(to: 40, generation: old, settings: &settings, uses24Hour: false)
-        _ = input.move(to: 2, generation: input.generation, settings: &settings, uses24Hour: false)
+        _ = input.move(to: 1, generation: input.generation, settings: &settings, uses24Hour: false)
         let minute = input.generation
         input.select(.hour)
         _ = input.move(to: 20, generation: minute, settings: &settings, uses24Hour: false)

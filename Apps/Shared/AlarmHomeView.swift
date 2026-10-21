@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: MPL-2.0
+#if os(iOS)
 import AlarmCore
 import SwiftUI
 #if os(watchOS)
@@ -285,3 +286,4 @@ private struct AlarmSettingsView: View {
         })
     }
 }
+#endif

@@ -29,6 +29,9 @@ for path in bundles:
         info = plistlib.load(f)
     assert info['CFBundleVersion'] == '42', f'Build number override missing: {path}'
     assert info['CFBundleShortVersionString'] == '1.2.3', f'Marketing version override missing: {path}'
+    if info.get('WKApplication'):
+        assert info.get('WKBackgroundModes') == ['alarm'], f'Watch smart-alarm background mode missing: {path}'
 print('Verified version overrides in all three archived bundles')
+print('Verified Watch smart-alarm background mode in archived app')
 PY
 

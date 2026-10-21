@@ -6,6 +6,7 @@ Status: **not yet executed**. Record results, device models, OS versions, build 
 
 - [ ] Confirm with Apple's documented intended use, and Apple Developer Support if necessary, that a fixed-time silent wake-up qualifies for the smart-alarm extended runtime mode. The documentation describes heart-rate/motion-based smart alarms; this app does not collect health data or implement sleep-stage detection.
 - [ ] Arm from an active Watch app; confirm both schedulers acknowledge before **Armed** appears.
+- [ ] Verify arming does not invoke the unsupported auto-launch authorization API or fail with its error 10. Verify a pending scheduling request does not immediately fail. Record any watchOS error domain/code shown after a genuine scheduling rejection, and confirm the phone preparation is canceled on failure.
 - [ ] Close the app normally, lower the wrist, leave both apps suspended overnight, and verify haptics begin at the selected time without sound.
 - [ ] Verify five-second repeats continue with the screen off, until dismissal or the platform runtime limit.
 - [ ] Leave the Watch alarm undismissed and confirm the iPhone itself sounds at the five-minute fallback, including while the Watch is paired and worn. Record AlarmKit's paired-Watch presentation behavior.

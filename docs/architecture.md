@@ -6,7 +6,7 @@ The Watch is the sole creator of alarm occurrences because watchOS requires its 
 
 1. Watch persists a new UUID and `preparing` record.
 2. Phone validates the occurrence and persisted cancellation tombstones, persists intent, then schedules AlarmKit at `wakeTime + offset`.
-3. After the phone acknowledgment, Watch schedules the extended runtime session at the wake time.
+3. After the phone acknowledgment, Watch checks that it is active and the occurrence has not been dismissed, then schedules the extended runtime session at the wake time using the `alarm` background mode and `start(at:)`. It does not call the auto-launch authorization API, which rejects this session type with error 10. It waits up to ten seconds for the system's scheduled/running state instead of assuming one task yield is enough. An invalidation during this wait returns the underlying watchOS diagnostic to the arming operation.
 4. Watch asks phone to confirm the pair, then persists `armed` after the reply. A complication time requires both scheduling flags and an armed/alerting phase.
 
 Any error attempts cancellation of both sides. Lost acknowledgments are treated as uncertain scheduling, not success. A disconnected cancellation is persisted and retried. Interrupted preparing records are cleaned up on launch; the phone also cleans up abandoned preparations older than two minutes when reconciling.

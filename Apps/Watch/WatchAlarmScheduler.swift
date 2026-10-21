@@ -5,6 +5,8 @@ import WatchKit
 @MainActor final class WatchAlarmScheduler: NSObject, AlarmScheduling, WKExtendedRuntimeSessionDelegate {
     private var session: WKExtendedRuntimeSession?
     private var occurrenceID: UUID?
+    private var schedulingID: UUID?
+    private var schedulingError: Error?
     private var expectedInvalidations: Set<ObjectIdentifier> = []
     private var notifiedSessions: Set<ObjectIdentifier> = []
     var coordinator: PairCoordinator?
@@ -15,15 +17,35 @@ import WatchKit
         }
         try occurrence.validate(at: Date())
         if let session, session.state != .invalid { throw AlarmError.alreadyArmed }
+        // Smart alarms use the alarm background mode and start(at:). The
+        // auto-launch authorization API rejects this session type (error 10).
+        if coordinator?.snapshot.dismissedIDs.contains(occurrence.id) == true { throw AlarmError.dismissed }
         let runtime = WKExtendedRuntimeSession()
         runtime.delegate = self
         session = runtime
         occurrenceID = occurrence.id
-        runtime.start(at: occurrence.wakeTime)
-        await Task.yield()
-        guard runtime.state == .scheduled || runtime.state == .running else {
-            throw AlarmError.message("watchOS did not schedule the haptic alarm. Check alarm auto-launch settings.")
+        schedulingID = occurrence.id
+        schedulingError = nil
+        defer {
+            schedulingID = nil
+            schedulingError = nil
         }
+        runtime.start(at: occurrence.wakeTime)
+        try await SchedulingConfirmation.wait {
+            if let schedulingError { throw schedulingError }
+            guard session === runtime, occurrenceID == occurrence.id,
+                  coordinator?.snapshot.dismissedIDs.contains(occurrence.id) != true else {
+                throw AlarmError.dismissed
+            }
+            // A pending state is not rejection. If invalidated, let the delegate
+            // deliver the real watchOS error before the bounded wait expires.
+            return runtime.state == .scheduled || runtime.state == .running
+        }
+    }
+
+    private func schedulingFailure(_ error: Error) -> AlarmError {
+        let error = error as NSError
+        return .message("watchOS could not schedule the haptic alarm: \(error.localizedDescription) [\(error.domain) \(error.code)]")
     }
 
     func cancel(_ id: UUID) async throws {
@@ -102,6 +124,11 @@ import WatchKit
             guard session === extendedRuntimeSession, let id = occurrenceID else { return }
             session = nil
             occurrenceID = nil
+            if schedulingID == id {
+                schedulingError = error.map { self.schedulingFailure($0) }
+                    ?? AlarmError.message("watchOS rejected the haptic alarm (reason \(reason.rawValue)).")
+                return
+            }
             guard let coordinator else { return }
             if coordinator.snapshot.dismissedIDs.contains(id) {
                 await coordinator.dismiss(id)

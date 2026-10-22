@@ -3,6 +3,7 @@
 import AlarmCore
 import SwiftUI
 import Foundation
+import WidgetKit
 
 /// Simulator-only fixtures use the real screens without signing or a paired phone.
 @MainActor struct WatchInterfaceReview: View {
@@ -17,7 +18,11 @@ import Foundation
 
     var body: some View {
         Group {
-            if screen == "home" {
+            if screen.hasPrefix("widget-") {
+                WakeComplicationView(entry: widgetEntry,
+                                     previewFamily: screen.contains("large") ? .accessoryRectangular : .accessoryCircular)
+                    .frame(width: screen.contains("large") ? 280 : 140, height: 140)
+            } else if screen == "home" {
                 WatchAlarmHomeView(coordinator: coordinator)
             } else {
                 WatchAlarmSettingsView(coordinator: coordinator, initialPath: initialPath)
@@ -34,6 +39,18 @@ import Foundation
                 }
             }
         }
+    }
+
+    private var widgetEntry: WakeEntry {
+        let now = Date()
+        guard screen.hasSuffix("armed"), !screen.hasSuffix("unarmed"),
+              let occurrence = try? AlarmSettings().nextOccurrence(after: now) else {
+            return WakeEntry(date: now, record: nil, storageFailed: false)
+        }
+        var record = AlarmRecord(occurrence: occurrence, phase: .armed)
+        record.phoneScheduled = true
+        record.watchScheduled = true
+        return WakeEntry(date: now, record: record, storageFailed: false)
     }
 
     private var initialPath: [WatchSettingsScreen] {

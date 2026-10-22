@@ -28,7 +28,7 @@ trap 'xcrun simctl shutdown "$watch" >/dev/null 2>&1 || true' EXIT
 xcrun simctl boot "$watch"
 xcrun simctl bootstatus "$watch" -b
 xcrun simctl install "$watch" build/WatchDerivedData/Build/Products/Debug-watchsimulator/AlarmBeansWatch.app
-for screen in home settings pattern pattern-changing interval offset; do
+for screen in home settings pattern pattern-changing interval offset widget-large-unarmed widget-large-armed widget-small-unarmed widget-small-armed; do
   xcrun simctl terminate "$watch" com.agawlbb.alarmbeans.watchkitapp >/dev/null 2>&1 || true
   xcrun simctl launch "$watch" com.agawlbb.alarmbeans.watchkitapp --interface-review "$screen"
   sleep 4

@@ -1,5 +1,12 @@
 # Physical-device acceptance
 
+## Minimal interface and phone permission checks
+
+- On a 40mm Watch, confirm the settings gear sits beside Inactive and Arm fills its own bottom row without scrolling. Confirm the approved settings screens still work unchanged.
+- Check rectangular widgets: No alarm while inactive; alarm time and Alarm armed while active. Check small widgets: an alarm icon while inactive, only the alarm time while active. Tapping still opens the alarm app. Error states must continue to direct you to check the app.
+- On a fresh iPhone install, open the app and allow the automatic alarm permission prompt. Relaunch and return from background: no repeat prompt or permission row should appear once allowed.
+- Deny permission, then confirm Settings offers Open Settings. Enable alarms in iOS Settings and return: the row should disappear. Arming must still reject missing permission.
+
 Status: **partial user testing; paired dismissal failed**. Record results, device models, OS versions, build number, and dates here. Do not infer device reliability from simulator builds or shared-package tests.
 
 ## Reported results — October 21, 2026

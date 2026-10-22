@@ -105,6 +105,7 @@ targets:
     sources:
       - Apps/Complication
       - Apps/Shared/AlarmStore.swift
+      - Apps/Shared/WakeComplicationView.swift
       - path: Resources/PrivacyInfo.xcprivacy
         buildPhase: resources
     settings:

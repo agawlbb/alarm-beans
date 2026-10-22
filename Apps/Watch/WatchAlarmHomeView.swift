@@ -34,26 +34,9 @@ struct WatchAlarmHomeView: View {
                 }
             } else {
                 WatchTimeEditor(settings: settings).disabled(coordinator.busy)
-                Text(coordinator.busy ? "Arming…" : "Inactive")
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 0)
-            if hasAlarm {
-                Button(role: .destructive) { Task { await coordinator.dismissCurrent() } } label: {
-                    Text("Stop").font(.headline).frame(maxWidth: .infinity, minHeight: 32)
-                }
-                .buttonStyle(.borderedProminent).tint(.red)
-                .disabled(coordinator.busy).accessibilityIdentifier("alarm.stop")
-            } else {
                 HStack(spacing: 8) {
-                    Button { Task { await coordinator.arm() } } label: {
-                        Group {
-                            if coordinator.busy { ProgressView() }
-                            else { Text("Arm").font(.headline) }
-                        }.frame(maxWidth: .infinity, minHeight: 32)
-                    }
-                    .buttonStyle(.borderedProminent).tint(green)
-                    .disabled(coordinator.busy).accessibilityLabel("Arm both alarms")
+                    Text(coordinator.busy ? "Arming…" : "Inactive")
+                        .font(.caption).foregroundStyle(.secondary)
                     if !coordinator.busy {
                         Button { showingSettings = true } label: {
                             Image(systemName: "gearshape")
@@ -64,6 +47,23 @@ struct WatchAlarmHomeView: View {
                         .accessibilityLabel("Settings").accessibilityIdentifier("alarm.settings")
                     }
                 }
+            }
+            Spacer(minLength: 0)
+            if hasAlarm {
+                Button(role: .destructive) { Task { await coordinator.dismissCurrent() } } label: {
+                    Text("Stop").font(.headline).frame(maxWidth: .infinity, minHeight: 32)
+                }
+                .buttonStyle(.borderedProminent).tint(.red)
+                .disabled(coordinator.busy).accessibilityIdentifier("alarm.stop")
+            } else {
+                    Button { Task { await coordinator.arm() } } label: {
+                        Group {
+                            if coordinator.busy { ProgressView() }
+                            else { Text("Arm").font(.headline) }
+                        }.frame(maxWidth: .infinity, minHeight: 32)
+                    }
+                    .buttonStyle(.borderedProminent).tint(green)
+                    .disabled(coordinator.busy).accessibilityLabel("Arm both alarms")
             }
             if let issue = coordinator.issue {
                 Text(issue).font(.caption2).foregroundStyle(.orange)

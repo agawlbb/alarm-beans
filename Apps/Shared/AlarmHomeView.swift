@@ -2,6 +2,7 @@
 #if os(iOS)
 import AlarmCore
 import SwiftUI
+import UIKit
 #if os(watchOS)
 import WatchKit
 #endif
@@ -10,7 +11,8 @@ private let beanGreen = Color(red: 0.64, green: 0.87, blue: 0.52)
 
 struct AlarmHomeView: View {
     @Bindable var coordinator: PairCoordinator
-    var authorize: (() async throws -> Void)?
+    var phoneAlarmsDenied = false
+    var permissionError: String?
     @State private var showingSettings = false
     @State private var editingTime = false
 
@@ -89,7 +91,8 @@ struct AlarmHomeView: View {
                 }
             }
             .sheet(isPresented: $showingSettings) {
-                AlarmSettingsView(coordinator: coordinator, authorize: authorize, locked: hasAlarm || coordinator.busy)
+                AlarmSettingsView(coordinator: coordinator, phoneAlarmsDenied: phoneAlarmsDenied,
+                                  permissionError: permissionError, locked: hasAlarm || coordinator.busy)
             }
             .onChange(of: hasAlarm) { _, active in
                 if active { showingSettings = false }
@@ -218,10 +221,11 @@ struct AlarmHomeView: View {
 
 private struct AlarmSettingsView: View {
     @Bindable var coordinator: PairCoordinator
-    var authorize: (() async throws -> Void)?
+    var phoneAlarmsDenied: Bool
+    var permissionError: String?
     let locked: Bool
     @Environment(\.dismiss) private var dismiss
-    @State private var permissionMessage: String?
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         NavigationStack {
@@ -243,16 +247,15 @@ private struct AlarmSettingsView: View {
                 if let issue = coordinator.issue ?? coordinator.snapshot.record?.detail {
                     Section("Status") { Text(issue) }
                 }
-                Section("Setup") {
-                    if let authorize {
-                        Button("Allow iPhone alarms") {
-                            Task {
-                                do { try await authorize(); permissionMessage = "iPhone alarms are allowed." }
-                                catch { permissionMessage = error.localizedDescription }
+                if phoneAlarmsDenied || permissionError != nil {
+                    Section("Phone alarms") {
+                        if phoneAlarmsDenied {
+                            Button("Open Settings") {
+                                if let url = URL(string: UIApplication.openSettingsURLString) { openURL(url) }
                             }
                         }
+                        if let permissionError { Text(permissionError) }
                     }
-                    if let permissionMessage { Text(permissionMessage) }
                 }
                 Section("About") {
                     Link("Source code · MPL-2.0", destination: URL(string: "https://github.com/agawlbb/alarm-beans")!)

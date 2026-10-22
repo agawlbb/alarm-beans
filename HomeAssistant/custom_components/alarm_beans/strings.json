@@ -1,0 +1,17 @@
+{
+  "config": {
+    "step": {
+      "user": {"title": "Home Assistant", "data": {"url": "HTTPS connection URL"}},
+      "pair": {"title": "Pair iPhone", "description": "Scan in Alarm Beans → Settings → Home Assistant. Expires in five minutes.\n\n![Pair Alarm Beans]({qr_url})"}
+    },
+    "error": {"invalid_url": "Enter a trusted HTTPS origin without a path.", "not_paired": "Scan the code in Alarm Beans first."},
+    "abort": {"already_configured": "Alarm Beans is already configured. Use its options to pair again."}
+  },
+  "options": {
+    "step": {
+      "init": {"menu_options": {"pair": "Pair iPhone again", "revoke": "Revoke iPhone access"}},
+      "pair": {"title": "Pair iPhone", "description": "Scanning replaces the previous device credential.\n\n![Pair Alarm Beans]({qr_url})"}
+    },
+    "error": {"not_paired": "Scan the code in Alarm Beans first."}
+  }
+}

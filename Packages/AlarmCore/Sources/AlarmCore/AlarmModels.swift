@@ -124,11 +124,15 @@ public struct SettingsUpdate: Codable, Equatable, Sendable {
     public var value: AlarmSettings
     public var timestamp: Date
     public var id: UUID
+    // Rotated by the Watch when Arm captures its settings. Old queued edits
+    // cannot cross this fence, even if delivered after dismissal.
+    public var epoch: UUID?
 
-    public init(value: AlarmSettings = .init(), timestamp: Date = .distantPast, id: UUID = UUID()) {
+    public init(value: AlarmSettings = .init(), timestamp: Date = .distantPast, id: UUID = UUID(), epoch: UUID? = nil) {
         self.value = value
         self.timestamp = timestamp
         self.id = id
+        self.epoch = epoch
     }
 
     public func isNewer(than other: SettingsUpdate) -> Bool {
@@ -166,9 +170,11 @@ public struct AlarmSnapshot: Codable, Equatable, Sendable {
 
     public func mayPrepare(_ occurrence: AlarmOccurrence) throws {
         if dismissedIDs.contains(occurrence.id) { throw AlarmError.dismissed }
+        guard pendingCancellations.isEmpty else { throw AlarmError.alreadyArmed }
         if let record, record.blocksNewAlarm, record.occurrence.id != occurrence.id {
             throw AlarmError.alreadyArmed
         }
+        if let record, record.blocksNewAlarm, record.occurrence != occurrence { throw AlarmError.alreadyArmed }
     }
 }
 

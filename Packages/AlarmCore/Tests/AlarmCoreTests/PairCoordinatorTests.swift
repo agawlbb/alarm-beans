@@ -18,7 +18,9 @@ import Testing
     var scheduleFails = false
     var cancelFails = false
     var onSchedule: (() async -> Void)?
+    var occurrences: [AlarmOccurrence] = []
     func schedule(_ occurrence: AlarmOccurrence) async throws {
+        occurrences.append(occurrence)
         if scheduleFails { throw AlarmError.unavailable }
         ids.insert(occurrence.id)
         await onSchedule?()
@@ -38,9 +40,13 @@ import Testing
     var dropConfirmationReply = false
     var dropCancellationReply = false
     var queued: [AlarmMessage] = []
+    var beforeRequest: ((AlarmMessage) async -> Void)?
+    var afterRequest: ((AlarmMessage) async -> Void)?
     func request(_ message: AlarmMessage) async throws -> AlarmReply {
         guard !offline, let handler = peer?.onMessage else { throw AlarmError.unavailable }
+        await beforeRequest?(message)
         let reply = await handler(message)
+        await afterRequest?(message)
         if dropConfirmationReply && message.kind == .confirmWatch { throw AlarmError.timedOut }
         if dropCancellationReply && message.kind == .cancel {
             _ = await onMessage?(AlarmMessage(.cancellationAcknowledged, id: message.id))
@@ -227,4 +233,180 @@ import Testing
     await pair.phone.synchronize()
     #expect(pair.watchScheduler.ids.isEmpty)
     #expect(pair.phone.snapshot.pendingCancellations.isEmpty)
+}
+
+@Test @MainActor func armCapturesDisplayedSettingsForBothSchedulers() async {
+    let pair = Pair()
+    let settings = AlarmSettings(hour: 9, minute: 17, fallbackMinutes: 8, hapticSeconds: 13)
+    #expect(pair.watch.updateSettings(settings))
+    let displayed = pair.watch.displayedSettings
+    await pair.watch.arm()
+    #expect(pair.watchScheduler.occurrences.first?.settings == displayed)
+    #expect(pair.phoneScheduler.occurrences.first?.settings == displayed)
+    #expect(pair.phone.displayedSettings == displayed)
+    #expect(pair.watch.displayedSettings == displayed)
+    #expect(pair.phone.snapshot.record?.occurrence == pair.watch.snapshot.record?.occurrence)
+}
+
+@Test @MainActor func everySettingsPathRejectsDuringPreparingAndArmed() async {
+    let pair = Pair()
+    let original = pair.watch.displayedSettings
+    let edits = [AlarmSettings(hour: 11), AlarmSettings(minute: 42),
+                 AlarmSettings(fallbackMinutes: 15), AlarmSettings(hapticSeconds: 27)]
+    func assertLocked() async {
+        for edit in edits {
+            #expect(!pair.watch.updateSettings(edit))
+            #expect(!pair.phone.updateSettings(edit))
+            #expect((try? await pair.phone.applyExternalSettings(edit)) == false)
+            for coordinator in [pair.phone, pair.watch] {
+                let update = SettingsUpdate(value: edit, timestamp: .distantFuture, epoch: coordinator.snapshot.settings.epoch)
+                let reply = await coordinator.receive(AlarmMessage(.settings, settings: update))
+                #expect(!reply.success)
+                #expect(coordinator.displayedSettings == original)
+            }
+        }
+    }
+    pair.phoneScheduler.onSchedule = { await assertLocked() }
+    await pair.watch.arm()
+    #expect(pair.watch.confirmedArmed)
+    await assertLocked()
+    #expect(pair.phoneScheduler.occurrences.first?.settings == original)
+    #expect(pair.watchScheduler.occurrences.first?.settings == original)
+}
+
+@Test @MainActor func delayedSettingsCannotCrossArmDismissFence() async {
+    let pair = Pair()
+    let oldEpoch = pair.watch.snapshot.settings.epoch
+    let stale = SettingsUpdate(value: AlarmSettings(hour: 13, minute: 51), timestamp: .distantFuture, epoch: oldEpoch)
+    await pair.watch.arm()
+    #expect(pair.watch.snapshot.settings.epoch != oldEpoch)
+    #expect(!(await pair.watch.receive(AlarmMessage(.settings, settings: stale))).success)
+    await pair.watch.dismissCurrent()
+    #expect(pair.watch.settingsEditable)
+    #expect(pair.phone.settingsEditable)
+    for coordinator in [pair.phone, pair.watch] {
+        #expect(!(await coordinator.receive(AlarmMessage(.settings, settings: stale))).success)
+        #expect(coordinator.displayedSettings == AlarmSettings())
+    }
+}
+
+@Test @MainActor func externalEditAcceptedBeforeArmIsTheScheduledDisplay() async throws {
+    let pair = Pair()
+    let wanted = AlarmSettings(hour: 10, minute: 28, fallbackMinutes: 12, hapticSeconds: 9)
+    pair.phoneLink.afterRequest = { message in
+        if message.kind == .settings { await pair.watch.arm() }
+    }
+    #expect(try await pair.phone.applyExternalSettings(wanted))
+    #expect(pair.watch.confirmedArmed)
+    for coordinator in [pair.phone, pair.watch] { #expect(coordinator.displayedSettings == wanted) }
+    #expect(pair.phoneScheduler.occurrences.first?.settings == wanted)
+    #expect(pair.watchScheduler.occurrences.first?.settings == wanted)
+}
+
+@Test @MainActor func armWinningTheExternalEditRaceRejectsThatEdit() async throws {
+    let pair = Pair()
+    pair.phoneLink.beforeRequest = { message in
+        if message.kind == .settings { await pair.watch.arm() }
+    }
+    #expect(try await pair.phone.applyExternalSettings(AlarmSettings(hour: 15)) == false)
+    #expect(pair.watch.confirmedArmed)
+    #expect(pair.watch.displayedSettings == AlarmSettings())
+    #expect(pair.phone.displayedSettings == AlarmSettings())
+    await pair.watch.dismissCurrent()
+    #expect(pair.watch.displayedSettings == AlarmSettings())
+}
+
+@Test @MainActor func watchOpeningRequestsPhoneBridgeAndOfflineKeepsSettings() async {
+    let pair = Pair()
+    var bridgeCalls = 0
+    pair.phone.onAppOpenSync = { bridgeCalls += 1 }
+    await pair.watch.synchronize()
+    #expect(bridgeCalls == 1)
+    let before = pair.watch.displayedSettings
+    pair.watchLink.offline = true
+    await pair.watch.synchronize()
+    #expect(bridgeCalls == 1)
+    #expect(pair.watch.displayedSettings == before)
+}
+
+@MainActor private final class HAJournal: HomeAssistantJournal {
+    var receipts: [HomeAssistantReceipt] = []
+    var fail = false
+    func save(_ value: [HomeAssistantReceipt]) throws {
+        if fail { throw AlarmError.unavailable }
+        receipts = value
+    }
+}
+
+@MainActor private final class HATransport: HomeAssistantTransport {
+    var commands: [HomeAssistantRequest] = []
+    var fail = false
+    var reports: [HomeAssistantReport] = []
+    func exchange(_ report: HomeAssistantReport) async throws -> [HomeAssistantRequest] {
+        if fail { throw AlarmError.unavailable }
+        reports.append(report)
+        let result = commands
+        commands = []
+        return result
+    }
+}
+
+@Test @MainActor func appOpenBridgeAcknowledgesOnlyWatchAcceptedValues() async throws {
+    let pair = Pair()
+    let journal = HAJournal()
+    let transport = HATransport()
+    transport.commands = [HomeAssistantRequest(field: "wake_time", value: "09:43"),
+                          HomeAssistantRequest(field: "haptic_interval", value: "14"),
+                          HomeAssistantRequest(field: "iphone_offset", value: "11")]
+    try await HomeAssistantSync(coordinator: pair.phone, transport: transport, journal: journal).synchronize()
+    #expect(pair.phone.displayedSettings.hour == 9)
+    #expect(pair.watch.displayedSettings.minute == 43)
+    #expect(pair.phone.displayedSettings.hapticSeconds == 14)
+    #expect(pair.watch.displayedSettings.fallbackMinutes == 11)
+    #expect(transport.reports.last?.receipts.allSatisfy(\.accepted) == true)
+    #expect(transport.reports.last?.values == HomeAssistantValues(pair.watch.displayedSettings))
+    #expect(journal.receipts.isEmpty)
+}
+
+@Test @MainActor func failedBridgeAndJournalLeaveDisplayedSettingsAlone() async {
+    let pair = Pair()
+    let journal = HAJournal()
+    let transport = HATransport()
+    transport.fail = true
+    do { try await HomeAssistantSync(coordinator: pair.phone, transport: transport, journal: journal).synchronize(); Issue.record("Expected network failure") }
+    catch {}
+    #expect(pair.phone.displayedSettings == AlarmSettings())
+    transport.fail = false
+    journal.fail = true
+    transport.commands = [HomeAssistantRequest(field: "wake_time", value: "16:30")]
+    do { try await HomeAssistantSync(coordinator: pair.phone, transport: transport, journal: journal).synchronize(); Issue.record("Expected journal failure") }
+    catch {}
+    #expect(pair.watch.displayedSettings == AlarmSettings())
+    #expect(pair.phone.displayedSettings == AlarmSettings())
+}
+
+@Test @MainActor func lockedHARequestsAreDiscardedAndNotReplayedAfterDismissal() async throws {
+    let pair = Pair()
+    await pair.watch.arm()
+    let journal = HAJournal()
+    let transport = HATransport()
+    transport.commands = [HomeAssistantRequest(field: "wake_time", value: "20:50")]
+    let bridge = HomeAssistantSync(coordinator: pair.phone, transport: transport, journal: journal)
+    try await bridge.synchronize()
+    #expect(transport.reports.last?.receipts.first?.accepted == false)
+    await pair.watch.dismissCurrent()
+    try await bridge.synchronize()
+    #expect(pair.phone.displayedSettings == AlarmSettings())
+    #expect(pair.watch.displayedSettings == AlarmSettings())
+}
+
+@Test func pairingRequiresHTTPSOriginAndOpaqueToken() throws {
+    let token = String(repeating: "a", count: 43)
+    for url in ["http://ha.local", "https://name:password@ha.local", "https://ha.local/path", "https://ha.local?x=1"] {
+        let data = try JSONEncoder().encode(["url": url, "token": token])
+        let pairing = try JSONDecoder().decode(HomeAssistantPairing.self, from: data)
+        #expect(throws: (any Error).self) { try pairing.validate() }
+    }
+    let data = try JSONEncoder().encode(["url": "https://ha.example:8123", "token": token])
+    try JSONDecoder().decode(HomeAssistantPairing.self, from: data).validate()
 }

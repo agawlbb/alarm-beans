@@ -13,6 +13,7 @@ struct AlarmHomeView: View {
     @Bindable var coordinator: PairCoordinator
     var phoneAlarmsDenied = false
     var permissionError: String?
+    var homeAssistant: HomeAssistantBridge?
     @State private var showingSettings = false
     @State private var editingTime = false
 
@@ -92,7 +93,7 @@ struct AlarmHomeView: View {
             }
             .sheet(isPresented: $showingSettings) {
                 AlarmSettingsView(coordinator: coordinator, phoneAlarmsDenied: phoneAlarmsDenied,
-                                  permissionError: permissionError, locked: hasAlarm || coordinator.busy)
+                                  permissionError: permissionError, homeAssistant: homeAssistant, locked: hasAlarm || coordinator.busy)
             }
             .onChange(of: hasAlarm) { _, active in
                 if active { showingSettings = false }
@@ -223,6 +224,7 @@ private struct AlarmSettingsView: View {
     @Bindable var coordinator: PairCoordinator
     var phoneAlarmsDenied: Bool
     var permissionError: String?
+    var homeAssistant: HomeAssistantBridge?
     let locked: Bool
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
@@ -260,6 +262,11 @@ private struct AlarmSettingsView: View {
                 Section("About") {
                     Link("Source code · MPL-2.0", destination: URL(string: "https://github.com/agawlbb/alarm-beans")!)
                     Link("Mozilla Public License 2.0", destination: URL(string: "https://mozilla.org/MPL/2.0/")!)
+                }
+                if let homeAssistant {
+                    Section {
+                        NavigationLink("Home Assistant") { HomeAssistantSettingsView(bridge: homeAssistant) }
+                    }
                 }
                 #endif
             }

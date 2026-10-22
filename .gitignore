@@ -16,4 +16,6 @@ Config/Local.xcconfig
 .env.*
 !.env.example
 .tools/
+__pycache__/
+*.py[cod]
 

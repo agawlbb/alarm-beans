@@ -49,6 +49,10 @@ Run `bash scripts/bootstrap.sh`, open the generated project in Xcode, and select
 
 Every normal push to `main` runs validation and **Prepare signed build**, which builds, tests, signs, and exports the paired app. The workflow can also be run manually. TestFlight upload is disabled by default; its explicit **publish** input must be enabled to upload and automatically distribute to the existing internal group. With publish off, the signed IPA and symbols remain GitHub artifacts. Signing requires your Apple signing assets; upload additionally requires App Store Connect configuration. Follow [TestFlight setup](docs/testflight.md). No credentials are stored in this repository.
 
+## Home Assistant
+
+The optional [Home Assistant integration](docs/home-assistant.md) provides a wake-time entity, read-only paired-alarm binary sensor, haptic-interval number, and iPhone-offset number. Pair by scanning HA's single-use QR code in the iPhone settings. HA presets synchronize on app opening; arming remains on Watch, and settings are locked throughout preparing and active alarms.
+
 ## Structure
 
 - `Packages/AlarmCore`: scheduling, countdown formatting, durable state, messages, coordination, and fault-injection tests.

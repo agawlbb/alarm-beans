@@ -35,6 +35,24 @@ public enum DeviceRole: Sendable { case phone, watch }
     @ObservationIgnored private var syncing = false
     @ObservationIgnored private var storageHealthy = true
     @ObservationIgnored public var onChange: (() -> Void)?
+    @ObservationIgnored public var onAppOpenSync: (() async -> Void)?
+
+    public var settingsEditable: Bool {
+        storageHealthy && !busy && snapshot.pendingCancellations.isEmpty &&
+        snapshot.record?.blocksNewAlarm != true &&
+        snapshot.record?.phoneScheduled != true && snapshot.record?.watchScheduled != true
+    }
+
+    public var displayedSettings: AlarmSettings {
+        if let record = snapshot.record,
+           record.blocksNewAlarm || record.phoneScheduled || record.watchScheduled { return record.occurrence.settings }
+        return snapshot.settings.value
+    }
+
+    public var confirmedArmed: Bool {
+        guard let record = snapshot.record else { return false }
+        return (record.phase == .armed || record.phase == .alerting) && record.phoneScheduled && record.watchScheduled
+    }
 
     public init(role: DeviceRole, scheduler: any AlarmScheduling,
                 link: any AlarmLink, persistence: any AlarmPersistence) {
@@ -66,13 +84,43 @@ public enum DeviceRole: Sendable { case phone, watch }
         }
     }
 
-    public func updateSettings(_ value: AlarmSettings) {
+    @discardableResult public func updateSettings(_ value: AlarmSettings) -> Bool {
+        guard settingsEditable else { return false }
+        let previous = snapshot.settings
         do {
             try value.validate()
-            snapshot.settings = SettingsUpdate(value: value, timestamp: Date())
+            snapshot.settings = SettingsUpdate(value: value, timestamp: Date(), epoch: previous.epoch)
             try persist()
             link.enqueue(AlarmMessage(.settings, settings: snapshot.settings))
-        } catch { issue = error.localizedDescription }
+            return true
+        } catch {
+            snapshot.settings = previous
+            issue = error.localizedDescription
+            return false
+        }
+    }
+
+    // HA acknowledges a change only after the Watch has accepted it. Never
+    // enqueue an external edit for replay after an offline/locked rejection.
+    public func applyExternalSettings(_ value: AlarmSettings) async throws -> Bool {
+        guard role == .phone, settingsEditable else { return false }
+        try value.validate()
+        let baseID = snapshot.settings.id
+        let update = SettingsUpdate(value: value, timestamp: Date(), epoch: snapshot.settings.epoch)
+        let reply = try await link.request(AlarmMessage(.settings, settings: update))
+        guard reply.success, reply.settings?.id == update.id else { return false }
+        if !settingsEditable {
+            // The Watch may have captured this accepted edit before its reply
+            // reached us. In that case prepareFallback already stored it.
+            return confirmedArmed || snapshot.record?.phase == .preparing
+                ? snapshot.record?.occurrence.settings == value : false
+        }
+        guard snapshot.settings.epoch == update.epoch else { return false }
+        guard snapshot.settings.id == baseID || snapshot.settings.id == update.id else { return false }
+        let previous = snapshot.settings
+        snapshot.settings = update
+        do { try persist() } catch { snapshot.settings = previous; throw error }
+        return true
     }
 
     public func arm(now: Date = Date(), calendar: Calendar = .current) async {
@@ -83,13 +131,15 @@ public enum DeviceRole: Sendable { case phone, watch }
         var occurrence: AlarmOccurrence?
         do {
             guard snapshot.pendingCancellations.isEmpty else { throw AlarmError.alreadyArmed }
-            let alarm = try snapshot.settings.value.nextOccurrence(after: now, calendar: calendar)
+            let captured = snapshot.settings.value
+            let alarm = try captured.nextOccurrence(after: now, calendar: calendar)
             try snapshot.mayPrepare(alarm)
             occurrence = alarm
             snapshot.record = AlarmRecord(occurrence: alarm)
+            snapshot.settings.epoch = UUID()
             try persist()
 
-            try check(await link.request(AlarmMessage(.prepareFallback, occurrence: alarm)))
+            try check(await link.request(AlarmMessage(.prepareFallback, occurrence: alarm, settings: snapshot.settings)))
             try ensureLive(alarm.id)
             snapshot.record?.phoneScheduled = true
             try persist()
@@ -202,8 +252,16 @@ public enum DeviceRole: Sendable { case phone, watch }
             if !busy { await dismiss(record.occurrence.id) }
         }
         do {
+            if role == .watch { _ = try? await link.request(AlarmMessage(.syncHomeAssistant)) }
             let reply = try await link.request(AlarmMessage(.query))
             if reply.success, let record = reply.record { await adopt(record) }
+            if role == .phone, settingsEditable, let update = reply.settings {
+                try update.value.validate()
+                if update.epoch != snapshot.settings.epoch || update.isNewer(than: snapshot.settings) {
+                    snapshot.settings = update
+                    try persist()
+                }
+            }
         } catch { /* Offline is expected; persisted alarms remain in force. */ }
     }
 
@@ -266,7 +324,13 @@ public enum DeviceRole: Sendable { case phone, watch }
                 guard !preparingIDs.contains(alarm.id) else { throw AlarmError.message("Scheduling is already in progress.") }
                 preparingIDs.insert(alarm.id)
                 defer { preparingIDs.remove(alarm.id) }
+                if let captured = message.settings, captured.value != alarm.settings { throw AlarmError.invalidSettings }
                 snapshot.record = AlarmRecord(occurrence: alarm)
+                if let captured = message.settings {
+                    snapshot.settings = captured
+                } else {
+                    snapshot.settings = SettingsUpdate(value: alarm.settings, timestamp: Date(), epoch: UUID())
+                }
                 try persist()
                 try await scheduler.schedule(alarm)
                 // Stop may have arrived while AlarmKit was awaiting scheduling.
@@ -300,16 +364,23 @@ public enum DeviceRole: Sendable { case phone, watch }
                     clearResolvedCancellationIssue()
                 }
             case .settings:
+                guard settingsEditable else { throw AlarmError.alreadyArmed }
+                guard message.settings?.epoch == snapshot.settings.epoch else {
+                    throw AlarmError.message("Settings request expired.")
+                }
                 if let update = message.settings, update.isNewer(than: snapshot.settings) {
                     try update.value.validate()
+                    let previous = snapshot.settings
                     snapshot.settings = update
-                    try persist()
+                    do { try persist() } catch { snapshot.settings = previous; throw error }
                 }
             case .state:
                 if let record = message.record { await adopt(record) }
+            case .syncHomeAssistant:
+                if role == .phone { await onAppOpenSync?() }
             case .query: break
             }
-            return AlarmReply(record: snapshot.record)
+            return AlarmReply(record: snapshot.record, settings: snapshot.settings)
         } catch {
             return AlarmReply(success: false, detail: error.localizedDescription, record: snapshot.record)
         }

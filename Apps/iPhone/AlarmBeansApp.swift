@@ -10,6 +10,7 @@ import UIKit
     let scheduler = PhoneAlarmScheduler()
     let link = ConnectivityLink()
     let coordinator: PairCoordinator
+    let homeAssistant: HomeAssistantBridge
     private var observation: Task<Void, Never>?
     var authorizationState = AlarmManager.shared.authorizationState
     var permissionError: String?
@@ -33,6 +34,9 @@ import UIKit
 
     private init() {
         coordinator = PairCoordinator(role: .phone, scheduler: scheduler, link: link, persistence: makeStore())
+        homeAssistant = HomeAssistantBridge(coordinator: coordinator)
+        coordinator.onAppOpenSync = { [weak homeAssistant] in await homeAssistant?.synchronize() }
+        coordinator.onChange = { [weak homeAssistant] in Task { await homeAssistant?.synchronize() } }
         link.activate()
         observation = Task { [weak self] in
             for await _ in AlarmManager.shared.alarmUpdates {
@@ -51,16 +55,18 @@ import UIKit
         WindowGroup {
             AlarmHomeView(coordinator: runtime.coordinator,
                           phoneAlarmsDenied: runtime.authorizationState == .denied,
-                          permissionError: runtime.permissionError)
+                          permissionError: runtime.permissionError, homeAssistant: runtime.homeAssistant)
             .task {
                 await runtime.coordinator.synchronize()
                 await runtime.checkAuthorization()
+                await runtime.homeAssistant.synchronize()
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
                     Task {
                         await runtime.coordinator.synchronize()
                         await runtime.checkAuthorization()
+                        await runtime.homeAssistant.synchronize()
                     }
                 }
             }

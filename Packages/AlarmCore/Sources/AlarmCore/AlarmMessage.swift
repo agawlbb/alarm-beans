@@ -3,7 +3,7 @@ import Foundation
 
 public struct AlarmMessage: Codable, Sendable {
     public enum Kind: String, Codable, Sendable {
-        case prepareFallback, confirmWatch, cancel, cancellationAcknowledged, settings, state, query
+        case prepareFallback, confirmWatch, cancel, cancellationAcknowledged, settings, state, query, syncHomeAssistant
     }
     public var kind: Kind
     public var occurrence: AlarmOccurrence?
@@ -25,10 +25,12 @@ public struct AlarmReply: Codable, Sendable {
     public let success: Bool
     public let detail: String?
     public let record: AlarmRecord?
-    public init(success: Bool = true, detail: String? = nil, record: AlarmRecord? = nil) {
+    public let settings: SettingsUpdate?
+    public init(success: Bool = true, detail: String? = nil, record: AlarmRecord? = nil, settings: SettingsUpdate? = nil) {
         self.success = success
         self.detail = detail
         self.record = record
+        self.settings = settings
     }
 }
 

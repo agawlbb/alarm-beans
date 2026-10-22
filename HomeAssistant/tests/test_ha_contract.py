@@ -125,6 +125,9 @@ class HAContractTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(OSError): await hub.sync(report, "valid")
         self.assertEqual(hub.ledger.attributes("wake_time")["request_status"], "pending")
         self.assertIsNone(hub.ledger.data["values"])
+        previous_id = hub.ledger.data["requests"]["wake_time"]["id"]
+        with self.assertRaises(OSError): await hub.request("wake_time", "16:00")
+        self.assertEqual(hub.ledger.data["requests"]["wake_time"]["id"], previous_id)
 
 
 if __name__ == "__main__": unittest.main()

@@ -410,3 +410,30 @@ import Testing
     let data = try JSONEncoder().encode(["url": "https://ha.example:8123", "token": token])
     try JSONDecoder().decode(HomeAssistantPairing.self, from: data).validate()
 }
+
+@Test @MainActor func unchangedFailureStateDoesNotCreateSyncFeedbackLoop() async {
+    let pair = Pair()
+    await pair.watch.arm()
+    pair.watch.reportRuntimeFailure(pair.watch.snapshot.record!.occurrence.id, detail: "Session expired")
+    var changes = 0
+    pair.phone.onChange = { changes += 1 }
+    await pair.phone.synchronize()
+    let first = changes
+    #expect(first > 0)
+    await pair.phone.synchronize()
+    #expect(changes == first)
+}
+
+@Test @MainActor func rejectedCurrentEpochEditCannotApplyAfterDismissalOrRelaunch() async throws {
+    let pair = Pair()
+    await pair.watch.arm()
+    let rejected = SettingsUpdate(value: AlarmSettings(hour: 18), timestamp: .distantFuture,
+                                  epoch: pair.watch.snapshot.settings.epoch)
+    #expect(!(await pair.watch.receive(AlarmMessage(.settings, settings: rejected))).success)
+    await pair.watch.dismissCurrent()
+    pair.watchStore.state = try JSONDecoder().decode(AlarmSnapshot.self, from: JSONEncoder().encode(pair.watchStore.state))
+    let restored = PairCoordinator(role: .watch, scheduler: FakeScheduler(), link: FakeLink(), persistence: pair.watchStore)
+    #expect(restored.settingsEditable)
+    #expect(!(await restored.receive(AlarmMessage(.settings, settings: rejected))).success)
+    #expect(restored.displayedSettings == AlarmSettings())
+}

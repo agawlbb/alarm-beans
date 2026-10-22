@@ -146,6 +146,8 @@ public struct AlarmSnapshot: Codable, Equatable, Sendable {
     // Tombstones are retained: queued messages must never resurrect old occurrences.
     public var dismissedIDs: Set<UUID> = []
     public var pendingCancellations: Set<UUID> = []
+    // Optional for snapshots written before Home Assistant support.
+    public var rejectedSettingsIDs: Set<UUID>?
 
     public init() {}
 

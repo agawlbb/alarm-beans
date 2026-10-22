@@ -91,6 +91,17 @@ private final class HANetwork: NSObject, URLSessionTaskDelegate, @unchecked Send
     }
 }
 
+@MainActor private final class HASessionJournal: HomeAssistantJournal {
+    let vault: HACredentialVault
+    let credential: String
+    init(vault: HACredentialVault, credential: String) { self.vault = vault; self.credential = credential }
+    var receipts: [HomeAssistantReceipt] { vault.connection?.credential == credential ? vault.receipts : [] }
+    func save(_ receipts: [HomeAssistantReceipt]) throws {
+        guard vault.connection?.credential == credential else { throw AlarmError.message("Pairing changed during synchronization.") }
+        try vault.save(receipts)
+    }
+}
+
 @MainActor @Observable final class HomeAssistantBridge {
     private let coordinator: PairCoordinator
     private let vault = HACredentialVault()
@@ -128,7 +139,8 @@ private final class HANetwork: NSObject, URLSessionTaskDelegate, @unchecked Send
             guard let connection = vault.connection else { return }
             // Fetch the current Watch epoch before attempting an external edit.
             await coordinator.synchronize()
-            try await HomeAssistantSync(coordinator: coordinator, transport: HAHTTPTransport(connection), journal: vault).synchronize()
+            try await HomeAssistantSync(coordinator: coordinator, transport: HAHTTPTransport(connection),
+                                       journal: HASessionJournal(vault: vault, credential: connection.credential)).synchronize()
             message = nil
         } catch { message = "Could not sync. Open both apps and try again." }
     }

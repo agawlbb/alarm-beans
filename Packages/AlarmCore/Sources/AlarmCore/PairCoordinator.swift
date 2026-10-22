@@ -51,7 +51,8 @@ public enum DeviceRole: Sendable { case phone, watch }
 
     public var confirmedArmed: Bool {
         guard let record = snapshot.record else { return false }
-        return (record.phase == .armed || record.phase == .alerting) && record.phoneScheduled && record.watchScheduled
+        return (record.phase == .armed || record.phase == .alerting) && record.phoneScheduled && record.watchScheduled &&
+            Date() < record.occurrence.watchExpiry
     }
 
     public init(role: DeviceRole, scheduler: any AlarmScheduling,
@@ -302,7 +303,8 @@ public enum DeviceRole: Sendable { case phone, watch }
             }
         } else {
             guard snapshot.record?.occurrence.id == id else { return }
-            if remote.phase == .failed {
+            if remote.phase == .failed,
+               snapshot.record?.phase != .failed || snapshot.record?.watchScheduled != false || snapshot.record?.detail != remote.detail {
                 snapshot.record?.phase = .failed
                 snapshot.record?.watchScheduled = false
                 snapshot.record?.detail = remote.detail
@@ -364,6 +366,9 @@ public enum DeviceRole: Sendable { case phone, watch }
                     clearResolvedCancellationIssue()
                 }
             case .settings:
+                if let id = message.settings?.id, snapshot.rejectedSettingsIDs?.contains(id) == true {
+                    throw AlarmError.message("Settings request expired.")
+                }
                 guard settingsEditable else { throw AlarmError.alreadyArmed }
                 guard message.settings?.epoch == snapshot.settings.epoch else {
                     throw AlarmError.message("Settings request expired.")
@@ -382,6 +387,13 @@ public enum DeviceRole: Sendable { case phone, watch }
             }
             return AlarmReply(record: snapshot.record, settings: snapshot.settings)
         } catch {
+            if message.kind == .settings, let id = message.settings?.id,
+               snapshot.rejectedSettingsIDs?.contains(id) != true {
+                var rejected = snapshot.rejectedSettingsIDs ?? []
+                rejected.insert(id)
+                snapshot.rejectedSettingsIDs = rejected
+                try? persist()
+            }
             return AlarmReply(success: false, detail: error.localizedDescription, record: snapshot.record)
         }
     }

@@ -24,11 +24,20 @@ class Hub:
 
     async def request(self, field, value):
         async with self.lock:
+            previous = deepcopy(self.ledger.data)
+            rejection = None
             try:
                 self.ledger.request(field, value)
-            finally:
+            except ValueError as error:
+                rejection = error
+            try:
                 await self.store.async_save(self.ledger.data)
-                self.notify()
+            except Exception:
+                self.ledger = Ledger(previous)
+                raise
+            self.notify()
+            if rejection:
+                raise rejection
 
     async def sync(self, report, credential):
         async with self.lock:

@@ -36,7 +36,7 @@ struct HomeAssistantSettingsView: View {
         }
         .disabled(busy)
         .navigationTitle("Home Assistant")
-        .sheet(isPresented: $scanning) {
+        .sheet(isPresented: $scanning, onDismiss: { if candidate != nil { confirming = true } }) {
             NavigationStack {
                 PairingScanner { text in
                     scanning = false
@@ -45,7 +45,6 @@ struct HomeAssistantSettingsView: View {
                         let pairing = try JSONDecoder().decode(HomeAssistantPairing.self, from: Data(text.utf8))
                         try pairing.validate()
                         candidate = pairing
-                        confirming = true
                     } catch { issue = "Invalid Alarm Beans pairing code." }
                 }
                 .navigationTitle("Scan pairing code")

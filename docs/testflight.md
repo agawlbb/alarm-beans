@@ -6,7 +6,7 @@ The App IDs and shared App Group below are registered. The [Alarm Beans App Stor
 
 The repository's `testflight` environment contains all nine release secrets and permits deployments from `main` only. The Apple Distribution certificate and all three App Store provisioning profiles expire on October 21, 2027; renew them and replace the corresponding secrets before that date. Keep private keys and profile contents out of Git.
 
-The [first signed upload](https://github.com/agawlbb/alarm-beans/actions/runs/39566224316) passed 24 tests, built and exported the signed archive, and received Apple's upload-success confirmation. TestFlight processing and physical-device validation are separate from upload success.
+The [1.0 (12) release](https://github.com/agawlbb/alarm-beans/actions/runs/39720406482) passed 39 tests, built and exported the signed archive, and uploaded successfully. Apple processed it and assigned it to Alarm Beans Internal. Its original source commit is `63c79f343567b07d69e107b2e28d57d40ab743e5`; a repository history cleanup does not issue a replacement app build. Physical-device acceptance remains separate from build and upload success.
 
 ## Apple resources
 
@@ -49,6 +49,8 @@ base64 -i your-file | tr -d '\n' | pbcopy
 Paste into the corresponding GitHub secret field. This command copies the encoded credential to your clipboard; clear it afterward.
 
 ## Upload and internal testing
+
+A normal push to `main` already runs both validation and signed build preparation. It exports a distributable but does not upload to TestFlight. Inspect workflow triggers before pushing; for an explicitly authorized no-build cleanup, see the narrowly scoped CI-skip practice in [AGENTS.md](../AGENTS.md). Do not dispatch a release workflow during cleanup.
 
 1. Confirm the **Build and test** workflow passes for the intended `main` commit.
 2. Run **Prepare signed build** on `main`. Leave **publish** off to build, test, sign, and export a downloadable IPA without any TestFlight upload or release. Enable **publish** only when a TestFlight release is explicitly intended; the existing internal group's automatic distribution applies after upload. Signing material is removed by the script's exit trap; the Mac runner is ephemeral.

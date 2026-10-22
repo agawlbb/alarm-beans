@@ -9,7 +9,7 @@ A quieter morning: repeating Apple Watch haptics at your wake time, followed by 
 ## Use
 
 1. Install the iPhone app and its Watch companion on iOS 26 / watchOS 26 or later.
-2. Open the gear button on iPhone and allow alarms in **Settings**.
+2. Open the iPhone app and allow its automatic alarm permission prompt. If access was previously denied, use **Open Settings** in the app's settings to enable it.
 3. Choose a wake time on either device. Timing settings default to a five-minute fallback and Watch haptics every five seconds.
 4. On the Watch, tap the hour or minute digits and turn the Digital Crown to edit. Each field wraps independently in either direction. In 12-hour mode, tap AM/PM to change period. Tap **Arm** and keep the app open until **Active** appears.
 5. Tap **Stop** on either device to dismiss. If cancellation is pending, the other device may still alert; open both apps to confirm.
@@ -18,9 +18,9 @@ Both apps show the Watch alarm time and activity status. The Watch shows time re
 
 Crown input has one owner for the entire time editor. Switching fields resets accumulated rotation and invalidates queued callbacks from the previous selection. Hours require two input units per step and minutes one, both at the system's low sensitivity; feedback plays only when a displayed number changes. Alarm start does not request display illumination. The ringing screen has a larger Stop control.
 
-The Watch has dedicated layouts: an explicit gear beside Arm, compact settings rows, and separate pattern/interval/offset lists. Pattern buttons preview and check a choice without navigating back. The phone's form is not used on the Watch.
+The Watch has dedicated layouts: a gear beside Inactive, a full-width Arm row, compact settings rows, and separate pattern/interval/offset lists. Pattern buttons preview and check a choice without navigating back. The phone's form is not used on the Watch.
 
-Add **Alarm Beans** through the Watch face complication editor. Circular, rectangular, inline, and corner layouts show the wake time only for a confirmed active pair. An inactive alarm shows no time; an attention icon means open the app. Tapping always opens the alarm screen. watchOS controls the timing of complication refreshes.
+Add **Alarm Beans** through the Watch face complication editor. Circular, rectangular, inline, and corner layouts show the wake time only for a confirmed active pair. Small active layouts show only the time; the rectangular layout adds Alarm armed. Inactive layouts show an alarm icon or No alarm; an attention indicator means open the app. Tapping always opens the alarm screen. watchOS controls the timing of complication refreshes.
 
 ## Build
 
@@ -47,7 +47,7 @@ Run `bash scripts/bootstrap.sh`, open the generated project in Xcode, and select
 
 ## TestFlight
 
-The manual **Prepare signed build** workflow builds, tests, signs, and exports the paired app from `main`. TestFlight upload is disabled by default; its explicit **publish** input must be enabled to upload and automatically distribute to the existing internal group. With publish off, the signed IPA and symbols remain GitHub artifacts. It requires your Apple signing assets; upload additionally requires App Store Connect configuration. Follow [TestFlight setup](docs/testflight.md). No credentials are stored in this repository.
+Every normal push to `main` runs validation and **Prepare signed build**, which builds, tests, signs, and exports the paired app. The workflow can also be run manually. TestFlight upload is disabled by default; its explicit **publish** input must be enabled to upload and automatically distribute to the existing internal group. With publish off, the signed IPA and symbols remain GitHub artifacts. Signing requires your Apple signing assets; upload additionally requires App Store Connect configuration. Follow [TestFlight setup](docs/testflight.md). No credentials are stored in this repository.
 
 ## Structure
 

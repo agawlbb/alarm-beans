@@ -15,7 +15,7 @@ except ImportError:
 @unittest.skipIf(homeassistant is None, "HA framework contract is checked on Linux CI")
 class HAContractTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
-        sys.path.insert(0, str(Path(__file__).parents[1]))
+        sys.path.insert(0, str(Path(__file__).parents[2]))
         from custom_components.alarm_beans.protocol import Ledger
         self.hub = SimpleNamespace(entry=SimpleNamespace(data={"device_id": "test-device"}), ledger=Ledger(), listeners=set())
 

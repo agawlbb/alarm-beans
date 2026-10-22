@@ -5,7 +5,7 @@ import json
 from pathlib import Path
 import unittest
 
-path = Path(__file__).parents[1] / "custom_components/alarm_beans/protocol.py"
+path = Path(__file__).parents[2] / "custom_components/alarm_beans/protocol.py"
 spec = importlib.util.spec_from_file_location("bean_protocol", path)
 protocol = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(protocol)

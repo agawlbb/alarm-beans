@@ -13,7 +13,7 @@ No arm switch, additional sensors, diagnostic entities, or public events are cre
 
 ## Install and pair
 
-1. Copy `HomeAssistant/custom_components/alarm_beans` into your HA configuration's `custom_components/alarm_beans` directory. This custom integration targets Home Assistant 2026.10 or later; it uses the HA-supported `segno==1.6.6` dependency to render QR codes. Restart HA after installation.
+1. In HACS, add `agawlbb/alarm-beans` as a custom **Integration** repository and download **Alarm Beans**. Alternatively, copy `custom_components/alarm_beans` into your HA configuration's `custom_components/alarm_beans` directory. This custom integration targets Home Assistant 2026.10 or later; it uses the HA-supported `segno==1.6.6` dependency to render QR codes. Restart HA after installation.
 2. In **Settings → Devices & services → Add integration**, select **Alarm Beans**. Supply your HA HTTPS origin, for example `https://your-instance.ui.nabu.casa`. It must be reachable by the iPhone with a normally trusted certificate; HTTP, certificate bypasses, URL user/passwords, and path/query/fragment URLs are unsupported.
 3. HA displays a QR code. On iPhone, open **Alarm Beans → Settings → Home Assistant → Scan pairing code**. Confirm the displayed server hostname. Scanning automatically completes HA's setup flow. No separate Watch pairing is needed.
 4. Open both apps while the Watch and phone can communicate. HA values are initially unknown until the phone reports them. Choose presets through the three writable entities, then open the phone or Watch to synchronize. Always arm the values displayed on the Watch.

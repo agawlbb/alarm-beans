@@ -105,7 +105,8 @@ private final class HANetwork: NSObject, URLSessionTaskDelegate, @unchecked Send
 @MainActor @Observable final class HomeAssistantBridge {
     private let coordinator: PairCoordinator
     private let vault = HACredentialVault()
-    private var syncing = false
+    private(set) var syncing = false
+    private(set) var syncSucceeded = false
     private var syncAgain = false
     var message: String?
     var paired: Bool { vault.connection != nil }
@@ -127,6 +128,8 @@ private final class HANetwork: NSObject, URLSessionTaskDelegate, @unchecked Send
     func synchronize() async {
         if syncing { syncAgain = true; return }
         syncing = true
+        syncSucceeded = false
+        message = nil
         defer {
             syncing = false
             if syncAgain {
@@ -141,6 +144,7 @@ private final class HANetwork: NSObject, URLSessionTaskDelegate, @unchecked Send
             await coordinator.synchronize()
             try await HomeAssistantSync(coordinator: coordinator, transport: HAHTTPTransport(connection),
                                        journal: HASessionJournal(vault: vault, credential: connection.credential)).synchronize()
+            syncSucceeded = true
             message = nil
         } catch { message = "Could not sync. Open both apps and try again." }
     }
@@ -150,6 +154,7 @@ private final class HANetwork: NSObject, URLSessionTaskDelegate, @unchecked Send
         _ = try await HANetwork().post(url: connection.url.appendingPathComponent("api/alarm_beans/device/\(connection.device_id)/revoke"),
                                        data: Data("{}".utf8), credential: connection.credential)
         try vault.remove()
+        syncSucceeded = false
         message = nil
     }
 }

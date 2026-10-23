@@ -15,7 +15,22 @@ struct HomeAssistantSettingsView: View {
         Form {
             if bridge.paired {
                 Text(bridge.host)
-                Button("Sync now") { Task { await bridge.synchronize() } }
+                Button {
+                    issue = nil
+                    Task { await bridge.synchronize() }
+                } label: {
+                    HStack {
+                        Text(bridge.syncing ? "Syncing…" : "Sync now")
+                        Spacer()
+                        if bridge.syncing {
+                            ProgressView().controlSize(.small).accessibilityHidden(true)
+                        } else if bridge.syncSucceeded {
+                            Image(systemName: "checkmark").accessibilityHidden(true)
+                        }
+                    }
+                }
+                .disabled(bridge.syncing)
+                .accessibilityValue(bridge.syncing ? "In progress" : (bridge.syncSucceeded ? "Sync succeeded" : ""))
                 Button("Disconnect", role: .destructive) {
                     Task {
                         busy = true
@@ -23,6 +38,7 @@ struct HomeAssistantSettingsView: View {
                         do { try await bridge.disconnect() } catch { issue = "Could not revoke pairing. Use Home Assistant options." }
                     }
                 }
+                .disabled(bridge.syncing)
             } else {
                 Button("Scan pairing code") {
                     guard DataScannerViewController.isSupported && DataScannerViewController.isAvailable else {

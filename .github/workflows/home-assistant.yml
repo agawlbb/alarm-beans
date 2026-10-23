@@ -1,0 +1,28 @@
+# SPDX-License-Identifier: MPL-2.0
+name: Test Home Assistant
+on:
+  workflow_call:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  home-assistant:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+      - name: Test security exception guards
+        run: python -m unittest discover -s HomeAssistant/ci -v
+      - name: Install isolated patched HA test environment
+        shell: bash
+        run: |
+          python -m venv "$RUNNER_TEMP/alarm-beans-ha-tests"
+          "$RUNNER_TEMP/alarm-beans-ha-tests/bin/python" HomeAssistant/ci/environment.py install
+      - name: Test protocol and actual Home Assistant entity contracts
+        shell: bash
+        run: |
+          "$RUNNER_TEMP/alarm-beans-ha-tests/bin/python" -m unittest discover -s HomeAssistant/tests -v
+          "$RUNNER_TEMP/alarm-beans-ha-tests/bin/python" HomeAssistant/ci/environment.py verify

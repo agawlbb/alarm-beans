@@ -1,13 +1,14 @@
 # Alarm Beans working practices
 
-## Ownership and workspaces
+## GitHub, branches and workspaces
 
-- Canonical laptop repository: `C:\Users\mailb\StudioProjects\AlarmBeans`, GitHub `agawlbb/alarm-beans`.
-- The designated owner is the existing **Plan Alarm Beans Apple App** chat (`01a15ba4-fc31-7c12-8ecb-d858d126267a`). While the laptop is connected, implementation, review, integration, and synchronization belong in that chat and folder. Coordination chats do not edit this repository.
-- Before writing, inspect instructions, local changes, local/remote refs, registered worktrees, and other active chats that might write here. Preserve unexpected work and obtain a handoff from any other writer. Do not infer inactivity from a clean tree alone.
-- Explicitly requested offline work uses a named `offline/<topic>` branch in this same repository. Do not create a hidden clone or a second project task as a substitute for coordination.
-- When the laptop returns, the owner reviews the offline branch, resolves conflicts, merges only intended work, runs appropriate tests, commits, pushes, and synchronizes active copies. Remove the temporary branch only after its completed work is integrated or recoverably preserved. Recovery archives are archives, never active workspaces.
-- Completed work must be committed and pushed. Before declaring completion, verify a clean working tree, the intended branch, and exact equality between local HEAD and the live GitHub head. Report any remaining difference or blocker.
+- GitHub `agawlbb/alarm-beans`, default branch `main`, is the canonical copy of accepted code and history. Laptop, VPS and cloud checkouts are working copies. The default branch is for integration of completed work, never a working branch for a task.
+- Prefer the VPS for most development. Development may also take place on the laptop or another authorized environment, including emulator, webview and device testing. Independent tasks use separate, clearly named temporary branches and separate working directories (Git worktrees or clones). Do not share a writable checkout between concurrent tasks. There is no permanent designated chat owner or owner-chat approval requirement.
+- Before editing, read applicable instructions and inspect current branches, worktrees, local edits, live GitHub heads and active writers/builds. Preserve unrelated and unpushed work; a clean tree alone does not prove inactivity. Coordinate overlapping changes and shared resources with the tasks involved.
+- Start each task branch from the latest canonical default and record its purpose and base commit. To move the same task between machines, commit and push that branch, then fetch and continue it on the other machine after coordinating the handoff. Never overwrite another task's work or use recovery archives as active workspaces.
+- Before merging, fetch and integrate the latest canonical default into the task branch, resolve conflicts without discarding others' changes, review the diff and rerun relevant checks against the integrated result. Serialize merges into the default branch and recheck its live head before publishing. Respect existing protections; do not bypass them or rewrite published history.
+- Commit and push completed work to the existing GitHub origin, merge accepted work into `main`, and verify the remote commit and a clean task working tree before reporting completion. Report blockers or unsynchronized work explicitly. Inspect push triggers before every push; GitHub publication does not itself authorize builds, releases, deployment or installation.
+- Temporary task branches must be removed both locally and remotely once their purpose is fulfilled and their changes are merged into the canonical default branch, or their work is explicitly abandoned by the user or the person responsible for that task. Verify the merge or abandonment decision first; preserve commit history, required recovery evidence and recoverable unique work before deletion. Stale or paused work is not abandoned. Never discard unmerged work without that decision, delete another task's branches, or purge recovery archives as routine cleanup.
 
 ## Validation and releases
 
@@ -22,5 +23,5 @@
 
 - `.tools/` and `Config/Local.xcconfig` are local-only. Never publish or broadly copy ignored signing keys, certificates, profiles, credentials, or private runtime configuration. Back up tracked source and Git history without copying those assets.
 - Delete only demonstrably obsolete or unrelated content after a verified recoverable backup. Preserve useful tests, release configuration, functional behavior, and all recovery archives.
-- Rewrite ancestry only when explicitly authorized, after a quiescent ownership checkpoint and verified backups. Recheck live refs immediately before publishing and use an exact expected-SHA force-with-lease. Never blindly overwrite a changed remote or purge recovery data.
+- Rewrite ancestry only when explicitly authorized, after a quiescent coordination checkpoint and verified backups. Recheck live refs immediately before publishing and use an exact expected-SHA force-with-lease. Never blindly overwrite a changed remote or purge recovery data.
 - Do not change branch protections, credentials, dependencies, hosting, or device installations as incidental cleanup. Security-sensitive protection changes require specific fresh user approval; report the minimal proposal while continuing unaffected work.

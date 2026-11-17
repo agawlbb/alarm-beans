@@ -5,10 +5,11 @@
 Canonical repository: `agawlbb/alarm-beans`; default branch: `main`.
 Follow the VM-wide working procedure in `/home/dev/projects/AGENTS.md`.
 Use the existing checkout on `main`, one task at a time; no routine task
-branches, extra worktrees or ownership claims. Complete the requested outcome,
-including deployment when applicable, then commit and push to `main`.
+branches, extra worktrees or ownership claims. Commit and push completed source changes to `main`.
 Use only relevant checks; do not repeat passing checks without a concrete reason.
 Questions and status checks are read-only. Preserve unrelated work and credentials.
+Deploy only when the user explicitly requests deployment. In every answer state
+whether deployment and an app build are needed; do not automatically do either.
 
 ## Validation and releases
 

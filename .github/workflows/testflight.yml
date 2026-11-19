@@ -18,7 +18,7 @@ concurrency:
 jobs:
   release:
     if: github.ref == 'refs/heads/main'
-    runs-on: macos-26
+    runs-on: xcode-27
     environment: testflight
     timeout-minutes: 40
     env:
@@ -37,6 +37,20 @@ jobs:
       UPLOAD_TO_TESTFLIGHT: ${{ inputs.publish || false }}
     steps:
       - uses: actions/checkout@v7.0.1
+      - name: Select and verify Xcode 27.2 and Apple SDKs
+        run: |
+          set -euo pipefail
+          export DEVELOPER_DIR=/Applications/Xcode_27.2.app/Contents/Developer
+          test -d "$DEVELOPER_DIR"
+          sudo xcode-select -s "$DEVELOPER_DIR"
+          echo "DEVELOPER_DIR=$DEVELOPER_DIR" >> "$GITHUB_ENV"
+          xcodebuild -version
+          [[ "$(xcodebuild -version)" == $'Xcode 27.2\nBuild version 27B52' ]]
+          for sdk in iphoneos iphonesimulator watchos watchsimulator; do
+            version="$(xcrun --sdk "$sdk" --show-sdk-version)"
+            echo "$sdk SDK: $version"
+            [[ "$version" == 27.2 ]] || { echo "::error::Expected $sdk SDK 27.2"; exit 1; }
+          done
       - name: Build and test before signing
         run: bash scripts/ci.sh
       - name: Sign and export (upload only when explicitly enabled)
